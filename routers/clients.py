@@ -14,19 +14,12 @@ def load_template(template_name: str) -> str:
 
 @router.get("/client_install.ps1", response_class=PlainTextResponse)
 def get_install_script(request: Request, single_run: bool = False):
-    # 產生唯一的 client ID
-    client_id = str(uuid.uuid4())
-    
-    # 初始化該 client 的指令佇列
-    command_queue[client_id] = None
-    
     # 自動取得當前伺服器 URL
     base_url = f"{request.url.scheme}://{request.url.netloc}"
     
     # 載入並格式化 PowerShell script 範本
     template = load_template("client_install.ps1")
     script = template.format(
-        client_id=client_id, 
         base_url=base_url,
         single_run="$true" if single_run else "$false"
     )

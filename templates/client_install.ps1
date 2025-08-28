@@ -1,22 +1,63 @@
-# Diagnostic Client - Client ID: {client_id}
-$clientId = "{client_id}"
-$sessionId = [System.Guid]::NewGuid().ToString().Substring(0,8)
+# Diagnostic Client
 $serverUrl = $env:SERVER_URL
 if (-not $serverUrl) {{
     $serverUrl = "{base_url}"
 }}
 $singleRun = {single_run}
 
+# 取得環境資訊用於穩定識別
+$hostname = $env:COMPUTERNAME
+$username = $env:USERNAME
+
+# 產生穩定的客戶端 ID
+$md5 = [System.Security.Cryptography.MD5]::Create()
+$inputString = "$($hostname.ToLower()):$($username.ToLower())"
+$hash = $md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($inputString))
+$hashString = ($hash | ForEach {{ "{{0:x2}}" -f $_ }}) -join ''
+$stableId = $hashString.Substring(0, 12)
+
 # Display startup information
 Write-Host "==================================================================================" -ForegroundColor Cyan
 Write-Host "                            DIAGNOSTIC CLIENT STARTED                            " -ForegroundColor Cyan
 Write-Host "==================================================================================" -ForegroundColor Cyan
-Write-Host "  Client ID   : $clientId  " -ForegroundColor Green
-Write-Host "  Session ID  : $sessionId                                              " -ForegroundColor Green
+Write-Host "  Stable ID   : $stableId                                                   " -ForegroundColor Green
+Write-Host "  Hostname    : $hostname                                                       " -ForegroundColor Green
+Write-Host "  Username    : $username                                                       " -ForegroundColor Green
 Write-Host "  Server URL  : $serverUrl             " -ForegroundColor Green
 Write-Host "  Single Run  : $singleRun                                                     " -ForegroundColor Green
 Write-Host "==================================================================================" -ForegroundColor Cyan
 Write-Host ""
+
+# 註冊客戶端到伺服器並取得 stable ID
+Write-Host "Registering client to server..." -ForegroundColor Yellow
+try {{
+    $registerData = @{{
+        client_id = $stableId
+        hostname = $hostname
+        username = $username
+    }} | ConvertTo-Json -Compress
+    
+    $registerResult = Invoke-RestMethod -Uri "$serverUrl/register_client" -Method POST -Body $registerData -ContentType "application/json" -UseBasicParsing
+    $registeredStableId = $registerResult.stable_id
+    $clientStatus = $registerResult.client_info
+    
+    Write-Host "==================================================================================" -ForegroundColor Green
+    Write-Host "                         CLIENT REGISTRATION SUCCESSFUL                          " -ForegroundColor Green
+    Write-Host "==================================================================================" -ForegroundColor Green
+    Write-Host "  Stable ID   : $registeredStableId                                           " -ForegroundColor Green
+    Write-Host "  Status      : $($clientStatus.status)                                                        " -ForegroundColor Green
+    Write-Host "  First Seen  : $(Get-Date $([DateTimeOffset]::FromUnixTimeSeconds($clientStatus.first_seen)).DateTime -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Green
+    Write-Host "==================================================================================" -ForegroundColor Green
+    Write-Host ""
+}} catch {{
+    Write-Host "==================================================================================" -ForegroundColor Red
+    Write-Host "                         CLIENT REGISTRATION FAILED                              " -ForegroundColor Red
+    Write-Host "==================================================================================" -ForegroundColor Red
+    Write-Host "  Error       : $($_.Exception.Message)                                      " -ForegroundColor Red
+    Write-Host "  Using local Stable ID: $stableId                                          " -ForegroundColor Yellow
+    Write-Host "==================================================================================" -ForegroundColor Red
+    Write-Host ""
+}}
 
 if ($singleRun) {{
     # Single run mode: wait for one command or timeout after 10 seconds
@@ -26,59 +67,59 @@ if ($singleRun) {{
     
     while ($elapsed -lt $timeout -and -not $commandExecuted) {{
         try {{
-            $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$clientId&session_id=$sessionId" -Method GET -TimeoutSec 5
+            $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$stableId&hostname=$hostname&username=$username" -Method GET -TimeoutSec 5
             
             if ($response.command) {{
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
-                Write-Host " [$sessionId] Executing: $($response.command)" -ForegroundColor Yellow
+                Write-Host " [$stableId] Executing: $($response.command)" -ForegroundColor Yellow
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
                 
                 $result = Invoke-Expression $response.command 2>&1 | Out-String
                 
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
-                Write-Host " [$sessionId] Result:" -ForegroundColor Magenta
+                Write-Host " [$stableId] Result:" -ForegroundColor Magenta
                 $result.Split("`n") | ForEach {{ if ($_ -ne "") {{ Write-Host " $_" -ForegroundColor White }} }}
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
                 Write-Host ""
                 
                 $commandExecuted = $true
-                Write-Host "[$sessionId] Command executed, exiting single run mode..." -ForegroundColor Green
+                Write-Host "[$stableId] Command executed, exiting single run mode..." -ForegroundColor Green
             }} else {{
-                Write-Host "[$sessionId] Waiting for commands... ($elapsed/$timeout seconds)" -ForegroundColor Gray
+                Write-Host "[$stableId] Waiting for commands... ($elapsed/$timeout seconds)" -ForegroundColor Gray
                 Start-Sleep -Seconds 1
                 $elapsed++
             }}
         }} catch {{
-            Write-Host "[$sessionId] Error checking for commands: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "[$stableId] Error checking for commands: $($_.Exception.Message)" -ForegroundColor Red
             Start-Sleep -Seconds 1
             $elapsed++
         }}
     }}
     
     if (-not $commandExecuted) {{
-        Write-Host "[$sessionId] No command received within $timeout seconds, exiting..." -ForegroundColor Yellow
+        Write-Host "[$stableId] No command received within $timeout seconds, exiting..." -ForegroundColor Yellow
     }}
 }} else {{
     # Continuous mode: keep running until error
     while ($true) {{
         try {{
             # Include session ID in each request
-            $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$clientId&session_id=$sessionId" -Method GET -TimeoutSec 30
+            $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$stableId&hostname=$hostname&username=$username" -Method GET -TimeoutSec 30
             
             if ($response.command) {{
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
-                Write-Host " [$sessionId] Executing: $($response.command)" -ForegroundColor Yellow
+                Write-Host " [$stableId] Executing: $($response.command)" -ForegroundColor Yellow
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
                 
                 $result = Invoke-Expression $response.command 2>&1 | Out-String
                 
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
-                Write-Host " [$sessionId] Result:" -ForegroundColor Magenta
+                Write-Host " [$stableId] Result:" -ForegroundColor Magenta
                 $result.Split("`n") | ForEach {{ if ($_ -ne "") {{ Write-Host " $_" -ForegroundColor White }} }}
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
                 Write-Host ""
             }} else {{
-                Write-Host "[$sessionId] Waiting for commands..." -ForegroundColor Gray
+                Write-Host "[$stableId] Waiting for commands..." -ForegroundColor Gray
             }}
             
             Start-Sleep -Seconds 5
@@ -86,7 +127,7 @@ if ($singleRun) {{
             Write-Host "==================================================================================" -ForegroundColor Red
             Write-Host "                                CONNECTION ERROR                                 " -ForegroundColor Red
             Write-Host "==================================================================================" -ForegroundColor Red
-            Write-Host "  Session ID  : $sessionId                                              " -ForegroundColor Red
+            Write-Host "  Stable ID   : $stableId                                               " -ForegroundColor Red
             Write-Host "  Error       : $($_.Exception.Message)" -ForegroundColor Red
             Write-Host "  Action      : Exiting client loop...                                              " -ForegroundColor Red
             Write-Host "==================================================================================" -ForegroundColor Red
@@ -97,5 +138,5 @@ if ($singleRun) {{
 
 Write-Host "==================================================================================" -ForegroundColor DarkYellow
 Write-Host "                             CLIENT DISCONNECTED                                 " -ForegroundColor DarkYellow
-Write-Host "  Session ID  : $sessionId                                              " -ForegroundColor DarkYellow
+Write-Host "  Stable ID   : $stableId                                               " -ForegroundColor DarkYellow
 Write-Host "==================================================================================" -ForegroundColor DarkYellow
