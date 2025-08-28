@@ -5,11 +5,11 @@ if (-not $serverUrl) {{
 }}
 $singleRun = {single_run}
 
-# 取得環境資訊用於穩定識別
+# Get environment info for stable identification
 $hostname = $env:COMPUTERNAME
 $username = $env:USERNAME
 
-# 產生穩定的客戶端 ID
+# Generate stable client ID
 $md5 = [System.Security.Cryptography.MD5]::Create()
 $inputString = "$($hostname.ToLower()):$($username.ToLower())"
 $hash = $md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($inputString))
@@ -28,7 +28,7 @@ Write-Host "  Single Run  : $singleRun                                          
 Write-Host "==================================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 註冊客戶端到伺服器並取得 stable ID
+# Register client to server and get stable ID
 Write-Host "Registering client to server..." -ForegroundColor Yellow
 try {{
     $registerData = @{{
@@ -70,11 +70,19 @@ if ($singleRun) {{
             $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$stableId&hostname=$hostname&username=$username" -Method GET -TimeoutSec 5
             
             if ($response.command) {{
+                $commandId = $response.command_id
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
                 Write-Host " [$stableId] Executing: $($response.command)" -ForegroundColor Yellow
+                if ($commandId) {{ Write-Host " Command ID: $commandId" -ForegroundColor Yellow }}
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
                 
-                $result = Invoke-Expression $response.command 2>&1 | Out-String
+                try {{
+                    $result = Invoke-Expression $response.command 2>&1 | Out-String
+                    $status = "completed"
+                }} catch {{
+                    $result = $_.Exception.Message
+                    $status = "failed"
+                }}
                 
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
                 Write-Host " [$stableId] Result:" -ForegroundColor Magenta
@@ -82,10 +90,25 @@ if ($singleRun) {{
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
                 Write-Host ""
                 
+                # Submit result to server if command_id is available
+                if ($commandId) {{
+                    try {{
+                        $resultData = @{{
+                            command_id = $commandId
+                            result = $result
+                            status = $status
+                        }} | ConvertTo-Json -Compress
+                        
+                        Invoke-RestMethod -Uri "$serverUrl/submit_result" -Method POST -Body $resultData -ContentType "application/json" -UseBasicParsing | Out-Null
+                        Write-Host "[$stableId] Result submitted successfully" -ForegroundColor Green
+                    }} catch {{
+                        Write-Host "[$stableId] Failed to submit result: $($_.Exception.Message)" -ForegroundColor Red
+                    }}
+                }}
+                
                 $commandExecuted = $true
                 Write-Host "[$stableId] Command executed, exiting single run mode..." -ForegroundColor Green
             }} else {{
-                Write-Host "[$stableId] Waiting for commands... ($elapsed/$timeout seconds)" -ForegroundColor Gray
                 Start-Sleep -Seconds 1
                 $elapsed++
             }}
@@ -107,19 +130,43 @@ if ($singleRun) {{
             $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$stableId&hostname=$hostname&username=$username" -Method GET -TimeoutSec 30
             
             if ($response.command) {{
+                $commandId = $response.command_id
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
                 Write-Host " [$stableId] Executing: $($response.command)" -ForegroundColor Yellow
+                if ($commandId) {{ Write-Host " Command ID: $commandId" -ForegroundColor Yellow }}
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
                 
-                $result = Invoke-Expression $response.command 2>&1 | Out-String
+                try {{
+                    $result = Invoke-Expression $response.command 2>&1 | Out-String
+                    $status = "completed"
+                }} catch {{
+                    $result = $_.Exception.Message
+                    $status = "failed"
+                }}
                 
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
                 Write-Host " [$stableId] Result:" -ForegroundColor Magenta
                 $result.Split("`n") | ForEach {{ if ($_ -ne "") {{ Write-Host " $_" -ForegroundColor White }} }}
                 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
                 Write-Host ""
+                
+                # Submit result to server if command_id is available
+                if ($commandId) {{
+                    try {{
+                        $resultData = @{{
+                            command_id = $commandId
+                            result = $result
+                            status = $status
+                        }} | ConvertTo-Json -Compress
+                        
+                        Invoke-RestMethod -Uri "$serverUrl/submit_result" -Method POST -Body $resultData -ContentType "application/json" -UseBasicParsing | Out-Null
+                        Write-Host "[$stableId] Result submitted successfully" -ForegroundColor Green
+                    }} catch {{
+                        Write-Host "[$stableId] Failed to submit result: $($_.Exception.Message)" -ForegroundColor Red
+                    }}
+                }}
             }} else {{
-                Write-Host "[$stableId] Waiting for commands..." -ForegroundColor Gray
+                # Silent wait
             }}
             
             Start-Sleep -Seconds 5
