@@ -25,11 +25,12 @@ class CommandInfo(BaseModel):
     command_id: str
     stable_id: str
     command: str
-    timestamp: float
+    created_at: float
+    scheduled_at: Optional[float] = None
+    finished_at: Optional[float] = None
     status: str  # 'pending', 'executing', 'completed', 'failed'
     result: str = ""
     result_type: ResultType = ResultType.TEXT
-    result_timestamp: Optional[float] = None
     files: list[FileInfo] = []
 
 
@@ -53,13 +54,13 @@ class CommandManager:
         """排隊新的 command（允許多個並行命令）"""
         # 建立新的 command
         command_id = str(uuid.uuid4())
-        timestamp = time.time()
+        created_at = time.time()
         
         command_info = CommandInfo(
             command_id=command_id,
             stable_id=stable_id,
             command=command,
-            timestamp=timestamp,
+            created_at=created_at,
             status='pending'
         )
         
@@ -78,7 +79,7 @@ class CommandManager:
         for command_id, command_info in self.command_history.items():
             if (command_info.stable_id == stable_id and 
                 command_info.status == 'pending'):
-                pending_commands.append((command_info.timestamp, command_id))
+                pending_commands.append((command_info.created_at, command_id))
         
         if not pending_commands:
             return None
@@ -108,7 +109,7 @@ class CommandManager:
         command_info.result = result
         command_info.status = status
         command_info.result_type = result_type
-        command_info.result_timestamp = time.time()
+        command_info.finished_at = time.time()
         
         # 不需要從 queue 中移除，因為 get_pending_commands_count 會自動清理
         
@@ -122,5 +123,12 @@ class CommandManager:
         """更新 command 狀態"""
         if command_id not in self.command_history:
             return False
-        self.command_history[command_id].status = status
+        
+        command_info = self.command_history[command_id]
+        command_info.status = status
+        
+        # 當狀態變成 executing 時，記錄 scheduled_at
+        if status == 'executing' and command_info.scheduled_at is None:
+            command_info.scheduled_at = time.time()
+            
         return True

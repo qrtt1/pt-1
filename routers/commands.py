@@ -71,7 +71,7 @@ def send_command(request: CommandRequest, cmd_manager: CommandManager = Depends(
     try:
         command_id = cmd_manager.queue_command(stable_id, command)
         command_info = cmd_manager.get_command(command_id)
-        timestamp = command_info.timestamp
+        timestamp = command_info.created_at
         
         return {
             "status": f"Command queued for {stable_id}",
@@ -120,8 +120,8 @@ def get_command_history(stable_id: str = None, limit: int = 50, cmd_manager: Com
     if stable_id:
         history = [cmd for cmd in history if cmd.stable_id == stable_id]
     
-    # Sort by timestamp (newest first)
-    history.sort(key=lambda x: x.timestamp, reverse=True)
+    # Sort by created_at (newest first)
+    history.sort(key=lambda x: x.created_at, reverse=True)
     
     return {
         "commands": history[:limit],
