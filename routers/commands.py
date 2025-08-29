@@ -2,7 +2,8 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from fastapi.responses import FileResponse
 from routers.clients import command_queue
 from routers.client_registry import update_client_status
-from services.command_manager import CommandManager, get_command_manager, CommandInfo, ResultType, FileInfo
+from services.command_manager import CommandManager, CommandInfo, ResultType, FileInfo
+from services.providers import get_command_manager
 from pydantic import BaseModel
 from typing import Dict, Optional, List
 import os

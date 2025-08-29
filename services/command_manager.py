@@ -124,15 +124,3 @@ class CommandManager:
             return False
         self.command_history[command_id].status = status
         return True
-
-
-# 單例實例
-_command_manager_instance = None
-
-
-def get_command_manager() -> CommandManager:
-    """FastAPI 依賴注入函數"""
-    global _command_manager_instance
-    if _command_manager_instance is None:
-        _command_manager_instance = CommandManager()
-    return _command_manager_instance
