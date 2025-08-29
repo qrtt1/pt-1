@@ -38,30 +38,15 @@ class CommandManager:
     
     def __init__(self):
         self.command_history: Dict[str, CommandInfo] = {}
-        self.command_queues: Dict[str, List[str]] = {}  # stable_id -> [command_id1, command_id2, ...]
+        # 移除 command_queues，所有狀態都透過 command_history 管理
     
     def get_pending_commands_count(self, stable_id: str) -> int:
         """取得 client 的 pending/executing 命令數量"""
-        if stable_id not in self.command_queues:
-            return 0
-        
         count = 0
-        queue = self.command_queues[stable_id]
-        
-        # 清理已完成的命令並計算 pending/executing 數量
-        valid_commands = []
-        for command_id in queue:
-            if command_id in self.command_history:
-                command_info = self.command_history[command_id]
-                if command_info.status in ['pending', 'executing']:
-                    valid_commands.append(command_id)
-                    count += 1
-                elif command_info.status in ['completed', 'failed']:
-                    # 已完成的命令保留在歷史中但從 queue 移除
-                    pass
-            
-        # 更新 queue 只保留有效的命令
-        self.command_queues[stable_id] = valid_commands
+        for command_info in self.command_history.values():
+            if (command_info.stable_id == stable_id and 
+                command_info.status in ['pending', 'executing']):
+                count += 1
         return count
     
     def queue_command(self, stable_id: str, command: str) -> str:
@@ -81,30 +66,28 @@ class CommandManager:
         # 儲存到 command history
         self.command_history[command_id] = command_info
         
-        # 添加到 client 的 command queue
-        if stable_id not in self.command_queues:
-            self.command_queues[stable_id] = []
-        self.command_queues[stable_id].append(command_id)
-        
-        # 不再使用舊的 command_queue 機制，所有命令都透過 CommandManager 管理
+        # 不再需要 command_queues，所有命令都透過 command_history 管理
         
         return command_id
     
     def get_next_pending_command_id(self, stable_id: str) -> Optional[str]:
         """取得 client 的下一個 pending command ID（按時間順序）"""
-        if stable_id not in self.command_queues:
+        # 找出所有該 client 的 pending 命令，按時間排序
+        pending_commands = []
+        
+        for command_id, command_info in self.command_history.items():
+            if (command_info.stable_id == stable_id and 
+                command_info.status == 'pending'):
+                pending_commands.append((command_info.timestamp, command_id))
+        
+        if not pending_commands:
             return None
         
-        queue = self.command_queues[stable_id]
+        # 按時間排序，取最早的
+        pending_commands.sort()
+        _, earliest_command_id = pending_commands[0]
         
-        # 找到第一個 pending 狀態的命令
-        for command_id in queue:
-            if command_id in self.command_history:
-                command_info = self.command_history[command_id]
-                if command_info.status == 'pending':
-                    return command_id
-        
-        return None
+        return earliest_command_id
     
     def get_next_command(self, stable_id: str) -> Optional[tuple]:
         """取得 client 的下一個 pending 命令（返回 command, command_id）"""
