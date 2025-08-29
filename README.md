@@ -52,6 +52,12 @@ curl "http://localhost:5566/get_result/{command_id}"
 curl "http://localhost:5566/command_history?stable_id=client_name&limit=10"
 ```
 
+### AI 助理使用指南
+```bash
+curl "http://localhost:5566/ai_guide"
+```
+*回傳完整的 Markdown 格式使用指南，包含 API 說明、最佳實踐與範例*
+
 ## 專案結構
 
 ```

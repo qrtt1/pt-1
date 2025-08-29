@@ -1,0 +1,184 @@
+# PowerShell Remote Execution Service - AI Assistant Guide
+
+## Service Overview
+
+This is a remote PowerShell execution service designed for AI assistants to execute Windows-specific commands and scripts on remote machines.
+
+**Server URL**: {base_url}
+
+## Core Capabilities
+
+- ✅ Execute PowerShell commands remotely
+- ✅ Support multiple concurrent clients
+- ✅ File upload/download for command results
+- ✅ Command queuing and status tracking
+- ✅ Complete command lifecycle monitoring
+
+## API Endpoints
+
+### 1. Send Command
+```http
+POST {base_url}/send_command
+Content-Type: application/json
+
+{{
+  "client_id": "target_machine_name",
+  "command": "Get-Process | Select-Object -First 5"
+}}
+```
+
+**Response**:
+```json
+{{
+  "status": "Command queued for target_machine_name",
+  "command_id": "uuid-here",
+  "timestamp": 1234567890.123
+}}
+```
+
+### 2. Get Command Result
+```http
+GET {base_url}/get_result/{{command_id}}
+```
+
+**Response**:
+```json
+{{
+  "command_id": "uuid-here",
+  "stable_id": "target_machine_name", 
+  "command": "Get-Process | Select-Object -First 5",
+  "created_at": 1234567890.123,
+  "scheduled_at": 1234567890.456,
+  "finished_at": 1234567890.789,
+  "status": "completed",
+  "result": "ProcessName   CPU(s)   Id\n...",
+  "result_type": "text",
+  "files": []
+}}
+```
+
+### 3. Command History
+```http
+GET {base_url}/command_history?stable_id={{client_id}}&limit=10
+```
+
+### 4. List Available Clients
+```http
+GET {base_url}/clients
+```
+
+### 5. Download Result Files
+```http
+GET {base_url}/download_file/{{command_id}}/{{filename}}
+```
+
+## Command Status Flow
+
+1. **pending** → Command created and queued
+2. **executing** → Client picked up the command 
+3. **completed** → Command finished successfully
+4. **failed** → Command execution failed
+
+## Best Practices for AI Assistants
+
+### ✅ DO
+
+1. **Always check command status** before assuming completion:
+   ```bash
+   # Poll result endpoint until status is 'completed' or 'failed'
+   curl "{base_url}/get_result/{{command_id}}"
+   ```
+
+2. **Use descriptive client_id** based on the target machine:
+   - Use hostname or meaningful identifier
+   - Client ID is automatically generated from hostname:username on client side
+
+3. **Handle file results appropriately**:
+   - Check `result_type` field: "text", "json", "file", "files", "mixed"
+   - Download files using `/download_file/{{command_id}}/{{filename}}`
+
+4. **Use appropriate PowerShell commands**:
+   ```powershell
+   # Good: Structured output
+   Get-Process | ConvertTo-Json
+   Get-Service | Export-Csv -Path "services.csv"
+   
+   # Good: Error handling
+   try {{ Get-WmiObject -Class Win32_Service }} catch {{ $_.Exception.Message }}
+   ```
+
+### ❌ DON'T
+
+1. **Don't assume immediate execution** - commands are queued and may take time
+2. **Don't send sensitive data** without proper security measures
+3. **Don't ignore error status** - always check if command completed successfully
+4. **Don't flood with commands** - respect the queuing system
+
+## Error Handling
+
+### Common Scenarios
+
+1. **Command not found**: Check if client_id exists and is online
+2. **Execution timeout**: Command may still be running, check status periodically
+3. **PowerShell errors**: Check the `result` field for error details
+4. **File upload issues**: Verify file paths exist on client machine
+
+### Example Error Response
+```json
+{{
+  "command_id": "uuid-here",
+  "status": "failed",
+  "result": "Get-InvalidCommand : The term 'Get-InvalidCommand' is not recognized...",
+  "result_type": "text"
+}}
+```
+
+## Security Considerations
+
+⚠️ **Important**: This service is designed for development/testing environments.
+
+- No authentication required (development use only)
+- Commands execute with client machine permissions
+- Be cautious with system-modifying commands
+- Avoid commands that require interactive input
+
+## Client Setup
+
+To add a new Windows machine as a client:
+
+```powershell
+# Single-run mode (for testing)
+iwr '{base_url}/client_install.ps1?single_run=true' -UseBasicParsing | iex
+
+# Continuous mode (for persistent use)  
+iwr '{base_url}/client_install.ps1' -UseBasicParsing | iex
+```
+
+## Example Workflow
+
+```bash
+# 1. Send command
+COMMAND_ID=$(curl -s -X POST "{base_url}/send_command" \
+  -H "Content-Type: application/json" \
+  -d '{{"client_id": "workstation-01", "command": "Get-ComputerInfo"}}' \
+  | jq -r '.command_id')
+
+# 2. Wait and check result
+curl "{base_url}/get_result/$COMMAND_ID"
+
+# 3. If files were created, download them
+curl "{base_url}/list_files/$COMMAND_ID"
+curl "{base_url}/download_file/$COMMAND_ID/output.csv"
+```
+
+## Limitations
+
+- **Memory-based storage**: Commands are lost on server restart
+- **No command timeout**: Long-running commands may block client
+- **No authentication**: Suitable for trusted networks only
+- **Single PowerShell session**: No persistent variables between commands
+
+---
+
+*Generated by PowerShell Remote Execution Service*
+*For support or issues, check the server logs or contact the administrator*

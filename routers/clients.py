@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 import uuid
 from typing import Dict, Optional
 
@@ -40,3 +40,15 @@ def get_dev_install_script(request: Request):
 @router.get("/clients")
 def list_clients():
     return {"clients": list(command_queue.keys())}
+
+@router.get("/ai_guide", response_class=Response)
+def get_ai_guide(request: Request):
+    """Get AI assistant usage guide in markdown format"""
+    # 自動取得當前伺服器 URL
+    base_url = f"{request.url.scheme}://{request.url.netloc}"
+    
+    # 載入並格式化 AI 指南範本
+    template = load_template("ai_guide.md")
+    guide = template.format(base_url=base_url)
+    
+    return Response(content=guide, media_type="text/markdown")
