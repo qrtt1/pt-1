@@ -19,8 +19,9 @@ def read_root(request: Request):
         },
         "quick_start": {
             "ai_assistant_guide": f"{base_url}/ai_guide",
-            "install_client": f"{base_url}/client_install.ps1",
-            "dev_mode": f"{base_url}/client_install.ps1?single_run=true"
+            "windows_agent": f"{base_url}/win_agent.ps1",
+            "windows_agent_dev": f"{base_url}/win_agent_dev.ps1", 
+            "single_run_mode": f"{base_url}/client_install.ps1?single_run=true"
         },
         "documentation": f"{base_url}/ai_guide"
     }

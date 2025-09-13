@@ -217,3 +217,68 @@ def list_files(command_id: str, cmd_manager: CommandManager = Depends(get_comman
         "files": command_info.files,
         "total_files": len(command_info.files)
     }
+
+@router.post("/upload_transcript/{command_id}")
+async def upload_transcript(
+    command_id: str, 
+    transcript_file: UploadFile = File(...),
+    metadata: str = None,
+    cmd_manager: CommandManager = Depends(get_command_manager)
+):
+    """Upload PowerShell execution transcript for a specific command"""
+    command_info = cmd_manager.get_command(command_id)
+    if not command_info:
+        raise HTTPException(status_code=404, detail=f"Command ID {command_id} not found")
+    
+    # Create command-specific directory
+    command_dir = UPLOAD_DIR / command_id
+    command_dir.mkdir(exist_ok=True)
+    
+    # Save transcript with timestamp
+    transcript_filename = f"transcript_{int(time.time())}.txt"
+    transcript_path = command_dir / transcript_filename
+    
+    try:
+        # Save transcript file
+        with open(transcript_path, "wb") as buffer:
+            content = await transcript_file.read()
+            buffer.write(content)
+        
+        # Parse metadata if provided
+        transcript_metadata = {}
+        if metadata:
+            try:
+                transcript_metadata = eval(metadata) if metadata.startswith('{') else {"info": metadata}
+            except:
+                transcript_metadata = {"raw_metadata": metadata}
+        
+        # Create FileInfo for transcript
+        file_info = FileInfo(
+            filename=transcript_filename,
+            size=len(content),
+            content_type="text/plain",
+            upload_timestamp=time.time()
+        )
+        
+        # Add transcript to command files
+        command_info.files.append(file_info)
+        
+        # Update result type if needed
+        if not command_info.result and command_info.status in ['executing', 'pending']:
+            command_info.result_type = ResultType.FILE
+        elif command_info.result and command_info.result_type == ResultType.TEXT:
+            command_info.result_type = ResultType.MIXED
+        
+        print(f"Uploaded transcript for command {command_id}: {transcript_filename}")
+        
+        return {
+            "status": "Transcript uploaded successfully",
+            "command_id": command_id,
+            "transcript_file": transcript_filename,
+            "metadata": transcript_metadata,
+            "upload_timestamp": file_info.upload_timestamp
+        }
+        
+    except Exception as e:
+        print(f"Error uploading transcript for {command_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload transcript: {str(e)}")

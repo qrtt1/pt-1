@@ -12,8 +12,33 @@ def load_template(template_name: str) -> str:
     with open(f"templates/{template_name}", "r", encoding="utf-8") as f:
         return f.read()
 
+@router.get("/win_agent.ps1", response_class=PlainTextResponse) 
+def get_win_agent_script(request: Request):
+    """Get Windows production agent script with transcript logging"""
+    # 自動取得當前伺服器 URL
+    base_url = f"{request.url.scheme}://{request.url.netloc}"
+    
+    # 載入並格式化 Windows 生產版代理人腳本
+    template = load_template("win_agent.ps1")
+    script = template.format(base_url=base_url)
+    
+    return script
+
+@router.get("/win_agent_dev.ps1", response_class=PlainTextResponse)
+def get_dev_win_agent_script(request: Request):
+    """Get Windows development agent script with session logging"""
+    # 自動取得當前伺服器 URL
+    base_url = f"{request.url.scheme}://{request.url.netloc}"
+    
+    # 載入並格式化 Windows 開發版代理人腳本
+    template = load_template("win_agent_dev.ps1")
+    script = template.format(base_url=base_url)
+    
+    return script
+
 @router.get("/client_install.ps1", response_class=PlainTextResponse)
 def get_install_script(request: Request, single_run: bool = False):
+    """Internal client script (used by agents)"""
     # 自動取得當前伺服器 URL
     base_url = f"{request.url.scheme}://{request.url.netloc}"
     
@@ -26,20 +51,10 @@ def get_install_script(request: Request, single_run: bool = False):
     
     return script
 
-@router.get("/dev_client_install.ps1", response_class=PlainTextResponse)
-def get_dev_install_script(request: Request):
-    # 自動取得當前伺服器 URL
-    base_url = f"{request.url.scheme}://{request.url.netloc}"
-    
-    # 載入並格式化開發版 PowerShell script 範本
-    template = load_template("dev_client_install.ps1")
-    script = template.format(base_url=base_url)
-    
-    return script
-
 @router.get("/clients")
 def list_clients():
     return {"clients": list(command_queue.keys())}
+
 
 @router.get("/ai_guide", response_class=Response)
 def get_ai_guide(request: Request):
