@@ -147,12 +147,24 @@ GET {base_url}/download_file/{{command_id}}/{{filename}}
 To add a new Windows machine as a client:
 
 ```powershell
-# Single-run mode (for testing)
-iwr '{base_url}/client_install.ps1?single_run=true' -UseBasicParsing | iex
+# Production deployment (recommended)
+iwr '{base_url}/win_agent.ps1' -UseBasicParsing | iex
 
-# Continuous mode (for persistent use)  
+# Direct execution (development/testing only)
 iwr '{base_url}/client_install.ps1' -UseBasicParsing | iex
 ```
+
+### Client Architecture
+
+- **Production Agent (`win_agent.ps1`)**:
+  - **Purpose**: Flow control and session management
+  - **Features**: Auto-restart, self-healing, continuous operation
+  - **Behavior**: Repeatedly calls the execution unit to maintain persistent connection
+
+- **Execution Unit (`client_install.ps1`)**:
+  - **Purpose**: Single command execution
+  - **Behavior**: Executes one command, returns result, then exits
+  - **Usage**: Called by production agent or used directly for testing
 
 ## Example Workflow
 
