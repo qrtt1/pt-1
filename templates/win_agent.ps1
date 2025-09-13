@@ -5,11 +5,17 @@ if (-not $serverUrl) {{
     $serverUrl = "{base_url}"
 }}
 
+# Create random working directory in temp
+$workDirName = "pt1_agent_" + [System.Guid]::NewGuid().ToString("N").Substring(0, 8)
+$workDir = Join-Path $env:TEMP $workDirName
+New-Item -ItemType Directory -Path $workDir -Force | Out-Null
+Set-Location $workDir
+
 Write-Host "===============================================================================" -ForegroundColor Green
-Write-Host "                   PRODUCTION CLIENT STARTED                                   " -ForegroundColor Green
+Write-Host "                      POWERSHELL AGENT STARTED                               " -ForegroundColor Green
 Write-Host "===============================================================================" -ForegroundColor Green
 Write-Host "  Server URL  : $serverUrl" -ForegroundColor Cyan
-Write-Host "  Mode        : Production (Self-healing + Auto-restart)" -ForegroundColor Cyan
+Write-Host "  Work Dir    : $workDir" -ForegroundColor Cyan
 Write-Host "===============================================================================" -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop" -ForegroundColor Yellow
 Write-Host ""
