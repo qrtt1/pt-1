@@ -64,7 +64,26 @@ GET {base_url}/command_history?stable_id={{client_id}}&limit=10
 
 ### 4. List Available Clients
 ```http
-GET {base_url}/clients
+GET {base_url}/client_registry
+```
+
+**Response**:
+```json
+{{
+  "clients": [
+    {{
+      "client_id": "a62d60298124",
+      "hostname": "WORKSTATION-01",
+      "username": "admin",
+      "stable_id": "a62d60298124",
+      "first_seen": 1234567890.123,
+      "last_seen": 1234567890.456,
+      "status": "online"
+    }}
+  ],
+  "online_count": 1,
+  "total_count": 1
+}}
 ```
 
 ### 5. Download Result Files
@@ -96,6 +115,8 @@ GET {base_url}/download_file/{{command_id}}/{{filename}}
 3. **Handle file results appropriately**:
    - Check `result_type` field: "text", "json", "file", "files", "mixed"
    - Download files using `/download_file/{{command_id}}/{{filename}}`
+   - **Debugging**: Check `files` array for execution transcripts and output files
+   - **Transcript logs**: May contain additional execution details not in `result` field
 
 4. **Use appropriate PowerShell commands**:
    ```powershell
@@ -122,6 +143,7 @@ GET {base_url}/download_file/{{command_id}}/{{filename}}
 2. **Execution timeout**: Command may still be running, check status periodically
 3. **PowerShell errors**: Check the `result` field for error details
 4. **File upload issues**: Verify file paths exist on client machine
+5. **Additional debugging info**: Check command `files` array for transcript logs and output files
 
 ### Example Error Response
 ```json
@@ -181,6 +203,9 @@ curl "{base_url}/get_result/$COMMAND_ID"
 # 3. If files were created, download them
 curl "{base_url}/list_files/$COMMAND_ID"
 curl "{base_url}/download_file/$COMMAND_ID/output.csv"
+
+# 4. For debugging, check transcript files
+curl "{base_url}/download_file/$COMMAND_ID/transcript_*.txt"
 ```
 
 ## Limitations

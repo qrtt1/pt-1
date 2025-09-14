@@ -15,7 +15,7 @@ def read_root(request: Request):
             "ai_guide": f"{base_url}/ai_guide",
             "send_command": f"{base_url}/send_command",
             "command_history": f"{base_url}/command_history",
-            "clients": f"{base_url}/clients"
+            "client_registry": f"{base_url}/client_registry"
         },
         "quick_start": {
             "ai_assistant_guide": f"{base_url}/ai_guide",

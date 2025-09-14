@@ -32,7 +32,7 @@
 #### 客戶端資訊
 | Endpoint | Method | 功能 | 回應格式 |
 |----------|--------|------|----------|
-| `/clients` | GET | 列出所有已註冊的客戶端 | `{"clients": ["client_id1", "client_id2", ...]}` |
+| `/client_registry` | GET | 列出所有已註冊的客戶端（含完整資訊） | `{"clients": [ClientInfo對象], "online_count": 1, "total_count": 1}` |
 
 ### 🔧 指令管理 (Command Router)
 

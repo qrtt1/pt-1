@@ -91,7 +91,8 @@ iwr {PUBLIC_URL}/dev_client_install.ps1 -UseBasicParsing | iex
 - 各個 router 透過 `main.py` 使用 `include_router()` 方式引入
 - Router 分類建議：
   - `routers/root.py` - 根路由（如首頁）
-  - `routers/clients.py` - 客戶端相關 endpoints
+  - `routers/clients.py` - 客戶端 PowerShell 腳本分發 endpoints
+  - `routers/client_registry.py` - 客戶端註冊與狀態管理 endpoints
   - `routers/commands.py` - 命令執行相關 endpoints
 
 ### 3. 目錄結構

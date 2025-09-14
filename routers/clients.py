@@ -37,9 +37,7 @@ def get_install_script(request: Request):
 
     return script
 
-@router.get("/clients")
-def list_clients():
-    return {"clients": list(command_queue.keys())}
+# Removed /clients endpoint - use /client_registry instead for complete client information
 
 
 @router.get("/ai_guide", response_class=Response)
