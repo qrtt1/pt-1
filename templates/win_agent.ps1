@@ -99,11 +99,21 @@ while ($true) {{
         Write-Host "[$sessionId] Auto-healing: Retrying in 10 seconds..." -ForegroundColor Yellow
         Start-Sleep -Seconds 10
     }} finally {{
-        # Stop transcript and upload
+        # Stop transcript
         Stop-Transcript | Out-Null
 
-        # Upload transcript using dedicated function (靜默上傳，不顯示訊息)
-        $uploadSuccess = Upload-SessionTranscript -TranscriptPath $transcriptPath -SessionId $sessionId -ClientId $stableId -ServerUrl $serverUrl
+        # Check if skip transcript flag exists
+        $skipTranscriptFlag = Join-Path $env:TEMP "SKIP_TRANSCRIPT_$stableId.flag"
+        $shouldUploadTranscript = -not (Test-Path $skipTranscriptFlag)
+
+        if ($shouldUploadTranscript) {{
+            # Upload transcript using dedicated function (靜默上傳，不顯示訊息)
+            $uploadSuccess = Upload-SessionTranscript -TranscriptPath $transcriptPath -SessionId $sessionId -ClientId $stableId -ServerUrl $serverUrl
+        }} else {{
+            Write-Host "[$sessionId] No command executed - transcript upload skipped" -ForegroundColor Gray
+            # Clean up the skip flag
+            Remove-Item $skipTranscriptFlag -Force -ErrorAction SilentlyContinue
+        }}
 
         # Clean up transcript file
         if (Test-Path $transcriptPath) {{

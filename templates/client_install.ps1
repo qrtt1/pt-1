@@ -190,4 +190,8 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
     }}
 }}
 
-# Silently exit if no command was received
+# Create skip transcript flag if no command was received
+if (-not $commandExecuted) {
+    $skipTranscriptFlag = Join-Path $env:TEMP "SKIP_TRANSCRIPT_$stableId.flag"
+    "NO_COMMAND_RECEIVED" | Out-File -FilePath $skipTranscriptFlag -Encoding UTF8
+}
