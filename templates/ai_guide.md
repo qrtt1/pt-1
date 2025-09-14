@@ -86,6 +86,41 @@ GET {base_url}/client_registry
 }}
 ```
 
+### 5. Agent Transcript Management
+
+**List Agent Transcripts**:
+```http
+GET {base_url}/agent_transcripts?client_id={{client_id}}&limit=50
+```
+
+**Get Agent Transcript Content**:
+```http
+GET {base_url}/agent_transcript/{{transcript_id}}?format=content
+```
+
+**Get Agent Transcript Metadata**:
+```http
+GET {base_url}/agent_transcript/{{transcript_id}}?format=metadata
+```
+
+**Response Example**:
+```json
+{{
+  "transcripts": [
+    {{
+      "transcript_id": "a62d60298124_20240914_143052_123",
+      "client_id": "a62d60298124",
+      "session_id": "session-001",
+      "upload_time": "2024-09-14T14:30:52.123456",
+      "file_size": 2048,
+      "created_time": "2024-09-14T14:30:50.000000"
+    }}
+  ],
+  "count": 1,
+  "filtered_by_client": "a62d60298124"
+}}
+```
+
 ### 5. Download Result Files
 ```http
 GET {base_url}/download_file/{{command_id}}/{{filename}}
@@ -123,9 +158,23 @@ GET {base_url}/download_file/{{command_id}}/{{filename}}
    # Good: Structured output
    Get-Process | ConvertTo-Json
    Get-Service | Export-Csv -Path "services.csv"
-   
+
    # Good: Error handling
    try {{ Get-WmiObject -Class Win32_Service }} catch {{ $_.Exception.Message }}
+   ```
+
+5. **Monitor agent transcripts for debugging**:
+   ```bash
+   # List recent transcripts for a client
+   curl "{base_url}/agent_transcripts?client_id=a62d60298124&limit=5"
+
+   # Get full transcript content for debugging
+   curl "{base_url}/agent_transcript/{{transcript_id}}?format=content"
+
+   # When to check transcripts:
+   # - Command execution fails unexpectedly
+   # - Agent appears offline but should be running
+   # - Investigating session-level issues
    ```
 
 ### ❌ DON'T

@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI
-from routers import root, clients, commands, client_registry
+from routers import root, clients, commands, client_registry, transcripts
 
 app = FastAPI()
 
@@ -9,6 +9,7 @@ app.include_router(root.router)
 app.include_router(clients.router)
 app.include_router(commands.router)
 app.include_router(client_registry.router)
+app.include_router(transcripts.router)
 
 @app.on_event("startup")
 async def startup_event():
