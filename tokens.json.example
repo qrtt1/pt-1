@@ -2,13 +2,13 @@
   "tokens": [
     {
       "name": "admin",
-      "token": "your-secret-token-here",
-      "description": "管理員用 token"
+      "token": "5f6af208-0042-425c-8ad2-862e1db415d5",
+      "description": "管理員用 token（請替換為你自己的 UUID）"
     },
     {
       "name": "client1",
-      "token": "another-token-here",
-      "description": "客戶端 1 的 token"
+      "token": "8d5c679f-21db-4025-82f8-2958f3b93b91",
+      "description": "客戶端 1 的 token（請替換為你自己的 UUID）"
     }
   ]
 }

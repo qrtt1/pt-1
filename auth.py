@@ -1,10 +1,20 @@
 import json
 import os
+import uuid
 from typing import Optional
 from fastapi import Header, HTTPException, status
 
 # 全局變數來快取 tokens
 _tokens_cache: Optional[set] = None
+
+
+def is_valid_uuid(token: str) -> bool:
+    """檢查字串是否為合法的 UUID 格式"""
+    try:
+        uuid.UUID(token)
+        return True
+    except (ValueError, AttributeError):
+        return False
 
 
 def load_tokens() -> set:
@@ -29,9 +39,29 @@ def load_tokens() -> set:
     try:
         with open(tokens_file, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # 提取所有的 token 值
-            _tokens_cache = {item["token"] for item in data.get("tokens", [])}
-            print(f"[Auth] Successfully loaded {len(_tokens_cache)} token(s)")
+            tokens_data = data.get("tokens", [])
+
+            # 驗證每個 token 是否為合法的 UUID
+            valid_tokens = set()
+            invalid_count = 0
+
+            for item in tokens_data:
+                token = item.get("token", "")
+                token_name = item.get("name", "unknown")
+
+                if is_valid_uuid(token):
+                    valid_tokens.add(token)
+                else:
+                    invalid_count += 1
+                    print(f"[Auth] Warning: Invalid UUID token '{token}' for '{token_name}', skipping")
+
+            _tokens_cache = valid_tokens
+
+            if invalid_count > 0:
+                print(f"[Auth] Successfully loaded {len(_tokens_cache)} valid token(s), skipped {invalid_count} invalid token(s)")
+            else:
+                print(f"[Auth] Successfully loaded {len(_tokens_cache)} token(s)")
+
             return _tokens_cache
     except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
         # 如果檔案格式錯誤，回傳空集合
