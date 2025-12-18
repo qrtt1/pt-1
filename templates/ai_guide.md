@@ -14,12 +14,33 @@ This is a remote PowerShell execution service designed for AI assistants to exec
 - ✅ Command queuing and status tracking
 - ✅ Complete command lifecycle monitoring
 
+## Authentication
+
+除了以下公開端點外，所有 API 呼叫都需要提供有效的 API token：
+- `GET /` - 服務概述
+- `GET /ai_guide` - 本指南
+
+### Token 使用方式
+
+支援兩種驗證方式：
+
+**方式 1：X-API-Token header（推薦）**
+```http
+X-API-Token: your-secret-token-here
+```
+
+**方式 2：Authorization Bearer header**
+```http
+Authorization: Bearer your-secret-token-here
+```
+
 ## API Endpoints
 
 ### 1. Send Command
 ```http
 POST {base_url}/send_command
 Content-Type: application/json
+X-API-Token: your-secret-token-here
 
 {{
   "client_id": "target_machine_name",
@@ -39,6 +60,7 @@ Content-Type: application/json
 ### 2. Get Command Result
 ```http
 GET {base_url}/get_result/{{command_id}}
+X-API-Token: your-secret-token-here
 ```
 
 **Response**:
@@ -60,11 +82,13 @@ GET {base_url}/get_result/{{command_id}}
 ### 3. Command History
 ```http
 GET {base_url}/command_history?stable_id={{client_id}}&limit=10
+X-API-Token: your-secret-token-here
 ```
 
 ### 4. List Available Clients
 ```http
 GET {base_url}/client_registry
+X-API-Token: your-secret-token-here
 ```
 
 **Response**:
@@ -91,16 +115,19 @@ GET {base_url}/client_registry
 **List Agent Transcripts**:
 ```http
 GET {base_url}/agent_transcripts?client_id={{client_id}}&limit=50
+X-API-Token: your-secret-token-here
 ```
 
 **Get Agent Transcript Content**:
 ```http
 GET {base_url}/agent_transcript/{{transcript_id}}?format=content
+X-API-Token: your-secret-token-here
 ```
 
 **Get Agent Transcript Metadata**:
 ```http
 GET {base_url}/agent_transcript/{{transcript_id}}?format=metadata
+X-API-Token: your-secret-token-here
 ```
 
 **Response Example**:
@@ -121,9 +148,10 @@ GET {base_url}/agent_transcript/{{transcript_id}}?format=metadata
 }}
 ```
 
-### 5. Download Result Files
+### 6. Download Result Files
 ```http
 GET {base_url}/download_file/{{command_id}}/{{filename}}
+X-API-Token: your-secret-token-here
 ```
 
 ## Command Status Flow
@@ -140,7 +168,7 @@ GET {base_url}/download_file/{{command_id}}/{{filename}}
 1. **Always check command status** before assuming completion:
    ```bash
    # Poll result endpoint until status is 'completed' or 'failed'
-   curl "{base_url}/get_result/{{command_id}}"
+   curl -H "X-API-Token: your-secret-token-here" "{base_url}/get_result/{{command_id}}"
    ```
 
 2. **Use descriptive client_id** based on the target machine:
@@ -166,10 +194,12 @@ GET {base_url}/download_file/{{command_id}}/{{filename}}
 5. **Monitor agent transcripts for debugging**:
    ```bash
    # List recent transcripts for a client
-   curl "{base_url}/agent_transcripts?client_id=a62d60298124&limit=5"
+   curl -H "X-API-Token: your-secret-token-here" \
+     "{base_url}/agent_transcripts?client_id=a62d60298124&limit=5"
 
    # Get full transcript content for debugging
-   curl "{base_url}/agent_transcript/{{transcript_id}}?format=content"
+   curl -H "X-API-Token: your-secret-token-here" \
+     "{base_url}/agent_transcript/{{transcript_id}}?format=content"
 
    # When to check transcripts:
    # - Command execution fails unexpectedly
@@ -206,12 +236,16 @@ GET {base_url}/download_file/{{command_id}}/{{filename}}
 
 ## Security Considerations
 
-⚠️ **Important**: This service is designed for development/testing environments.
+⚠️ **Important**: This service requires API token authentication.
 
-- No authentication required (development use only)
-- Commands execute with client machine permissions
-- Be cautious with system-modifying commands
-- Avoid commands that require interactive input
+- **API Token Required**: All endpoints (except `/` and `/ai_guide`) require valid API token
+- **Permissions**: Commands execute with client machine permissions
+- **Best Practices**:
+  - Keep your API tokens secure and confidential
+  - Use different tokens for different clients/purposes
+  - Be cautious with system-modifying commands
+  - Avoid commands that require interactive input
+  - Use HTTPS in production environments
 
 ## Client Setup
 
@@ -240,28 +274,35 @@ iwr '{base_url}/client_install.ps1' -UseBasicParsing | iex
 ## Example Workflow
 
 ```bash
+# Set your API token
+API_TOKEN="your-secret-token-here"
+
 # 1. Send command
 COMMAND_ID=$(curl -s -X POST "{base_url}/send_command" \
   -H "Content-Type: application/json" \
+  -H "X-API-Token: $API_TOKEN" \
   -d '{{"client_id": "workstation-01", "command": "Get-ComputerInfo"}}' \
   | jq -r '.command_id')
 
 # 2. Wait and check result
-curl "{base_url}/get_result/$COMMAND_ID"
+curl -H "X-API-Token: $API_TOKEN" \
+  "{base_url}/get_result/$COMMAND_ID"
 
 # 3. If files were created, download them
-curl "{base_url}/list_files/$COMMAND_ID"
-curl "{base_url}/download_file/$COMMAND_ID/output.csv"
+curl -H "X-API-Token: $API_TOKEN" \
+  "{base_url}/list_files/$COMMAND_ID"
+curl -H "X-API-Token: $API_TOKEN" \
+  "{base_url}/download_file/$COMMAND_ID/output.csv"
 
 # 4. For debugging, check transcript files
-curl "{base_url}/download_file/$COMMAND_ID/transcript_*.txt"
+curl -H "X-API-Token: $API_TOKEN" \
+  "{base_url}/download_file/$COMMAND_ID/transcript_*.txt"
 ```
 
 ## Limitations
 
 - **Memory-based storage**: Commands are lost on server restart
 - **No command timeout**: Long-running commands may block client
-- **No authentication**: Suitable for trusted networks only
 - **Single PowerShell session**: No persistent variables between commands
 
 ---

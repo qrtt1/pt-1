@@ -4,6 +4,7 @@ from routers.clients import command_queue
 from routers.client_registry import update_client_status
 from services.command_manager import CommandManager, CommandInfo, ResultType, FileInfo
 from services.providers import get_command_manager
+from auth import verify_token
 from pydantic import BaseModel
 from typing import Dict, Optional, List
 import os
@@ -32,7 +33,7 @@ class CommandResult(BaseModel):
 # CommandManager 已移至 services.command_manager
 
 @router.get("/next_command")
-def get_next_command(client_id: str, hostname: str = None, username: str = None, cmd_manager: CommandManager = Depends(get_command_manager)):
+def get_next_command(client_id: str, hostname: str = None, username: str = None, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     # client_id 現在是 stable_id
     stable_id = client_id
     
@@ -58,7 +59,7 @@ def get_next_command(client_id: str, hostname: str = None, username: str = None,
     return {"command": None}
 
 @router.post("/send_command")
-def send_command(request: CommandRequest, cmd_manager: CommandManager = Depends(get_command_manager)):
+def send_command(request: CommandRequest, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """Send command to client using request body"""
     stable_id = request.client_id
     command = request.command
@@ -82,7 +83,7 @@ def send_command(request: CommandRequest, cmd_manager: CommandManager = Depends(
         raise  # 重新拋出 409 錯誤
 
 @router.post("/submit_result")
-def submit_result(result_data: CommandResult, cmd_manager: CommandManager = Depends(get_command_manager)):
+def submit_result(result_data: CommandResult, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """Submit command execution result"""
     command_id = result_data.command_id
     
@@ -104,7 +105,7 @@ def submit_result(result_data: CommandResult, cmd_manager: CommandManager = Depe
     return {"status": "Result submitted successfully", "command_id": command_id}
 
 @router.get("/get_result/{command_id}")
-def get_result(command_id: str, cmd_manager: CommandManager = Depends(get_command_manager)):
+def get_result(command_id: str, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """Get command execution result by command ID"""
     command_info = cmd_manager.get_command(command_id)
     if not command_info:
@@ -113,7 +114,7 @@ def get_result(command_id: str, cmd_manager: CommandManager = Depends(get_comman
     return command_info
 
 @router.get("/command_history")
-def get_command_history(stable_id: str = None, limit: int = 50, cmd_manager: CommandManager = Depends(get_command_manager)):
+def get_command_history(stable_id: str = None, limit: int = 50, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """Get command history, optionally filtered by stable_id"""
     history = list(cmd_manager.command_history.values())
     
@@ -129,7 +130,7 @@ def get_command_history(stable_id: str = None, limit: int = 50, cmd_manager: Com
     }
 
 @router.post("/upload_files/{command_id}")
-async def upload_files(command_id: str, files: List[UploadFile] = File(...), cmd_manager: CommandManager = Depends(get_command_manager)):
+async def upload_files(command_id: str, files: List[UploadFile] = File(...), cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """Upload files for a specific command result"""
     command_info = cmd_manager.get_command(command_id)
     if not command_info:
@@ -184,7 +185,7 @@ async def upload_files(command_id: str, files: List[UploadFile] = File(...), cmd
     }
 
 @router.get("/download_file/{command_id}/{filename}")
-async def download_file(command_id: str, filename: str, cmd_manager: CommandManager = Depends(get_command_manager)):
+async def download_file(command_id: str, filename: str, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """Download a specific file from command results"""
     command_info = cmd_manager.get_command(command_id)
     if not command_info:
@@ -206,7 +207,7 @@ async def download_file(command_id: str, filename: str, cmd_manager: CommandMana
     )
 
 @router.get("/list_files/{command_id}")
-def list_files(command_id: str, cmd_manager: CommandManager = Depends(get_command_manager)):
+def list_files(command_id: str, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """List all files associated with a command"""
     command_info = cmd_manager.get_command(command_id)
     if not command_info:
@@ -220,10 +221,11 @@ def list_files(command_id: str, cmd_manager: CommandManager = Depends(get_comman
 
 @router.post("/upload_transcript/{command_id}")
 async def upload_transcript(
-    command_id: str, 
+    command_id: str,
     transcript_file: UploadFile = File(...),
     metadata: str = None,
-    cmd_manager: CommandManager = Depends(get_command_manager)
+    cmd_manager: CommandManager = Depends(get_command_manager),
+    token: str = Depends(verify_token)
 ):
     """Upload PowerShell execution transcript for a specific command"""
     command_info = cmd_manager.get_command(command_id)

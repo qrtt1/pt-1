@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import PlainTextResponse, Response
+from auth import verify_token
 import uuid
 from typing import Dict, Optional
 
@@ -12,8 +13,8 @@ def load_template(template_name: str) -> str:
     with open(f"templates/{template_name}", "r", encoding="utf-8") as f:
         return f.read()
 
-@router.get("/win_agent.ps1", response_class=PlainTextResponse) 
-def get_win_agent_script(request: Request):
+@router.get("/win_agent.ps1", response_class=PlainTextResponse)
+def get_win_agent_script(request: Request, token: str = Depends(verify_token)):
     """Get Windows production agent script with transcript logging"""
     # 自動取得當前伺服器 URL
     base_url = f"{request.url.scheme}://{request.url.netloc}"
@@ -26,7 +27,7 @@ def get_win_agent_script(request: Request):
 
 
 @router.get("/client_install.ps1", response_class=PlainTextResponse)
-def get_install_script(request: Request):
+def get_install_script(request: Request, token: str = Depends(verify_token)):
     """PowerShell execution unit script (called by win_agent.ps1)"""
     # 自動取得當前伺服器 URL
     base_url = f"{request.url.scheme}://{request.url.netloc}"

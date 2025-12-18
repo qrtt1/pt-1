@@ -1,0 +1,89 @@
+import json
+import os
+from typing import Optional
+from fastapi import Header, HTTPException, status
+
+# 全局變數來快取 tokens
+_tokens_cache: Optional[set] = None
+
+
+def load_tokens() -> set:
+    """載入 tokens.json 檔案並回傳有效的 token 集合"""
+    global _tokens_cache
+
+    # 如果已經載入過，直接回傳快取
+    if _tokens_cache is not None:
+        return _tokens_cache
+
+    tokens_file = os.path.join(os.path.dirname(__file__), "tokens.json")
+    tokens_file_abs = os.path.abspath(tokens_file)
+
+    print(f"[Auth] Loading tokens from: {tokens_file_abs}")
+
+    # 如果檔案不存在，回傳空集合
+    if not os.path.exists(tokens_file):
+        print(f"[Auth] Warning: tokens.json not found at {tokens_file_abs}")
+        _tokens_cache = set()
+        return _tokens_cache
+
+    try:
+        with open(tokens_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # 提取所有的 token 值
+            _tokens_cache = {item["token"] for item in data.get("tokens", [])}
+            print(f"[Auth] Successfully loaded {len(_tokens_cache)} token(s)")
+            return _tokens_cache
+    except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
+        # 如果檔案格式錯誤，回傳空集合
+        print(f"[Auth] Error loading tokens: {e}")
+        _tokens_cache = set()
+        return _tokens_cache
+
+
+def reload_tokens():
+    """重新載入 tokens（用於手動更新 tokens.json 後）"""
+    global _tokens_cache
+    _tokens_cache = None
+    return load_tokens()
+
+
+async def verify_token(
+    x_api_token: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None)
+) -> str:
+    """
+    驗證 API token 的 dependency function
+
+    支援兩種方式：
+    1. X-API-Token header
+    2. Authorization: Bearer <token> header
+
+    如果 token 無效，會拋出 401 錯誤
+    """
+    token = None
+
+    # 優先使用 X-API-Token
+    if x_api_token:
+        token = x_api_token
+    # 其次嘗試從 Authorization header 提取
+    elif authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]  # 移除 "Bearer " 前綴
+
+    # 如果沒有提供 token
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供 API token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 驗證 token 是否有效
+    valid_tokens = load_tokens()
+    if token not in valid_tokens:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="無效的 API token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return token

@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query
 from fastapi.responses import PlainTextResponse, JSONResponse
 from typing import Optional, Dict, List
 from services.transcript_manager import get_transcript_manager, TranscriptManager
+from auth import verify_token
 import json
 
 router = APIRouter()
@@ -13,7 +14,8 @@ async def upload_agent_transcript(
     transcript_file: UploadFile = File(...),
     session_id: Optional[str] = None,
     metadata: Optional[str] = None,
-    transcript_mgr: TranscriptManager = Depends(get_transcript_manager)
+    transcript_mgr: TranscriptManager = Depends(get_transcript_manager),
+    token: str = Depends(verify_token)
 ):
     """
     Upload agent transcript (not tied to specific command)
@@ -58,7 +60,8 @@ async def upload_agent_transcript(
 async def list_agent_transcripts(
     client_id: Optional[str] = Query(None, description="Filter by client ID"),
     limit: int = Query(50, ge=1, le=200, description="Maximum number of transcripts to return"),
-    transcript_mgr: TranscriptManager = Depends(get_transcript_manager)
+    transcript_mgr: TranscriptManager = Depends(get_transcript_manager),
+    token: str = Depends(verify_token)
 ):
     """
     List available agent transcripts
@@ -84,7 +87,8 @@ async def list_agent_transcripts(
 async def get_agent_transcript(
     transcript_id: str,
     format: str = Query("content", regex="^(content|metadata|both)$"),
-    transcript_mgr: TranscriptManager = Depends(get_transcript_manager)
+    transcript_mgr: TranscriptManager = Depends(get_transcript_manager),
+    token: str = Depends(verify_token)
 ):
     """
     Get agent transcript content and/or metadata

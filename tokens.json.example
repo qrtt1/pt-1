@@ -1,0 +1,14 @@
+{
+  "tokens": [
+    {
+      "name": "admin",
+      "token": "your-secret-token-here",
+      "description": "管理員用 token"
+    },
+    {
+      "name": "client1",
+      "token": "another-token-here",
+      "description": "客戶端 1 的 token"
+    }
+  ]
+}

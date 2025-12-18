@@ -33,23 +33,72 @@ iwr http://your-server:5566/client_install.ps1 -UseBasicParsing | iex
 iwr 'http://your-server:5566/client_install.ps1?single_run=true' -UseBasicParsing | iex
 ```
 
+## API Token 設定
+
+除了 `/` 與 `/ai_guide` 以外的所有 API 端點都需要提供有效的 API token 進行驗證。
+
+### 設定 Token
+
+1. 複製範本檔案：
+```bash
+cp tokens.json.example tokens.json
+```
+
+2. 編輯 `tokens.json`，加入你的 token：
+```json
+{
+  "tokens": [
+    {
+      "name": "admin",
+      "token": "your-secret-token-here",
+      "description": "管理員用 token"
+    }
+  ]
+}
+```
+
+### Token 使用方式
+
+API token 支援兩種驗證方式：
+
+**方式 1：使用 X-API-Token header**
+```bash
+curl -H "X-API-Token: your-secret-token-here" http://localhost:5566/command_history
+```
+
+**方式 2：使用 Authorization Bearer header**
+```bash
+curl -H "Authorization: Bearer your-secret-token-here" http://localhost:5566/command_history
+```
+
+### 公開端點（不需要 Token）
+
+以下端點可以直接存取，不需要驗證：
+- `GET /` - 服務概述
+- `GET /ai_guide` - AI 助理使用指南
+
 ## API 使用
+
+所有 API 呼叫（除了 `/` 和 `/ai_guide`）都需要提供 API token。
 
 ### 發送指令
 ```bash
 curl -X POST "http://localhost:5566/send_command" \
   -H "Content-Type: application/json" \
+  -H "X-API-Token: your-secret-token-here" \
   -d '{"client_id": "client_name", "command": "Get-Process"}'
 ```
 
 ### 查詢結果
 ```bash
-curl "http://localhost:5566/get_result/{command_id}"
+curl -H "X-API-Token: your-secret-token-here" \
+  "http://localhost:5566/get_result/{command_id}"
 ```
 
 ### 指令歷史
 ```bash
-curl "http://localhost:5566/command_history?stable_id=client_name&limit=10"
+curl -H "X-API-Token: your-secret-token-here" \
+  "http://localhost:5566/command_history?stable_id=client_name&limit=10"
 ```
 
 ### AI 助理使用指南

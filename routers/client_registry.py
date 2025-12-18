@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Dict, Optional
+from auth import verify_token
 import time
 import hashlib
 
@@ -58,7 +59,7 @@ def check_offline_clients():
             client.status = 'offline'
 
 @router.get("/client_registry")
-def get_client_registry():
+def get_client_registry(token: str = Depends(verify_token)):
     """取得所有客戶端註冊資料"""
     check_offline_clients()
     return {
@@ -68,7 +69,7 @@ def get_client_registry():
     }
 
 @router.get("/client_registry/{stable_id}")
-def get_client_info(stable_id: str):
+def get_client_info(stable_id: str, token: str = Depends(verify_token)):
     """取得特定客戶端詳細資料"""
     check_offline_clients()
     if stable_id not in client_registry:
@@ -81,7 +82,7 @@ class ClientRegistration(BaseModel):
     username: str
 
 @router.post("/register_client")
-def register_client(registration: ClientRegistration):
+def register_client(registration: ClientRegistration, token: str = Depends(verify_token)):
     """註冊或更新客戶端"""
     stable_id = update_client_status(
         registration.client_id, 

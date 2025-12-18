@@ -172,3 +172,6 @@ Thumbs.db
 
 # Application uploads (includes transcripts)
 uploads/
+
+# API tokens
+tokens.json
