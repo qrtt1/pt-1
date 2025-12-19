@@ -1,133 +1,182 @@
-# PowerShell Remote Execution Service
+# PT-1 CLI - PowerShell Remote Execution Tool
 
-一個用於 AI 助理遠端執行 PowerShell 指令的診斷服務系統。
+一個讓你從任何地方遠端執行 Windows PowerShell 命令的 CLI 工具。專為 AI 助理和開發者設計，提供簡單、直觀的命令列介面來管理遠端 Windows 機器。
 
-## 功能特色
+## 核心功能
 
-- 🔄 **多 Client 支援**: 基於 hostname:username 的穩定識別
-- 📋 **指令佇列管理**: 支援多指令並行執行與狀態追蹤
-- 📁 **檔案傳輸**: 支援指令結果檔案上傳與下載
-- 🕒 **完整時間線**: created_at → scheduled_at → finished_at
-- 🔧 **開發友善**: 一行指令部署、自動日誌上傳
-- 🏗️ **模組化架構**: 依賴注入、服務分離
+- 🎯 **遠端 PowerShell 執行**: 從 macOS/Linux 對 Windows 機器執行 PowerShell 命令
+- 📊 **指令追蹤**: 完整的執行歷史、狀態監控與結果查詢
+- 📁 **檔案傳輸**: 自動下載命令產生的檔案（CSV、JSON、logs）
+- 🔍 **除錯工具**: 查看完整的 PowerShell session transcripts
+- 🤖 **AI 友善**: 專為 AI agent 設計的清晰 API 與文件
+- ⚡ **即時等待**: 自動輪詢命令狀態，無需手動檢查
+
+## 使用場景
+
+### 🏢 IT 管理與診斷
+```bash
+# 檢查遠端伺服器狀態
+pt1 send prod-server01 "Get-Service | Where-Object {$_.Status -eq 'Running'}"
+pt1 wait <command_id>
+
+# 匯出系統資訊
+pt1 send workstation-03 "Get-ComputerInfo | ConvertTo-Json"
+pt1 wait <command_id>
+```
+
+### 📊 資料收集與分析
+```bash
+# 收集 process 資料並下載
+pt1 send target-pc "Get-Process | Export-Csv processes.csv -NoTypeInformation"
+pt1 wait <command_id>
+pt1 download <command_id> processes.csv
+```
+
+### 🔧 自動化測試
+```bash
+# 在測試環境執行腳本
+pt1 send test-env "& C:\Scripts\run-tests.ps1"
+pt1 wait <command_id>
+
+# 檢查執行歷史
+pt1 history test-env 10
+```
+
+### 🤖 AI Agent 整合
+```bash
+# AI agent 可以快速查看指南
+pt1 prompt
+
+# 查看所有可用機器
+pt1 list-clients
+
+# 執行並自動等待結果
+pt1 send example-pc "Get-HotFix | Select-Object -First 5"
+pt1 wait <command_id>
+```
 
 ## 快速開始
 
-### 啟動 Server
+### 1. 安裝 CLI
 
 ```bash
-# 安裝依賴
 pip install -e .
-
-# 啟動服務
-uvicorn main:app --host 0.0.0.0 --port 5566
 ```
 
-### 部署 Client
+### 2. 設定連線
+
+建立設定檔 `~/.pt-1/.env`：
+
+```bash
+PT1_SERVER_URL=https://your-server.example.com
+PT1_API_TOKEN=your-api-token-here
+```
+
+驗證連線：
+
+```bash
+pt1 auth
+```
+
+### 3. 部署 Windows Client
+
+在目標 Windows 機器上執行（PowerShell）：
 
 ```powershell
-# 標準模式（持續運行）
-iwr http://your-server:5566/client_install.ps1 -UseBasicParsing | iex
+# 使用 quickstart 命令取得安裝指令
+pt1 quickstart my-dev-pc
 
-# 單次執行模式（開發測試）
-iwr 'http://your-server:5566/client_install.ps1?single_run=true' -UseBasicParsing | iex
+# 複製顯示的命令到 Windows 機器執行
 ```
 
-## API Token 設定
+### 4. 開始使用
 
-除了 `/` 與 `/ai_guide` 以外的所有 API 端點都需要提供有效的 API token 進行驗證。
-
-### 設定 Token
-
-1. 複製範本檔案：
 ```bash
-cp tokens.json.example tokens.json
+# 查看已連線的 clients
+pt1 list-clients
+
+# 發送第一個命令
+pt1 send my-dev-pc "Get-ComputerInfo | Select-Object CsName, WindowsVersion"
+
+# 等待並查看結果
+pt1 wait <command_id>
 ```
 
-2. 編輯 `tokens.json`，加入你的 token：
-```json
-{
-  "tokens": [
-    {
-      "name": "admin",
-      "token": "your-secret-token-here",
-      "description": "管理員用 token"
-    }
-  ]
-}
-```
+## 完整命令列表
 
-### Token 使用方式
+### 設定與驗證
+- `pt1 auth` - 驗證 API token 與伺服器連線
+- `pt1 quickstart [client_id]` - 產生 Windows client 安裝命令
 
-API token 支援兩種驗證方式：
+### 執行管理
+- `pt1 list-clients` - 列出所有已註冊的 Windows clients
+- `pt1 send <client_id> <command>` - 發送 PowerShell 命令
+- `pt1 wait <command_id>` - 自動等待命令完成並顯示結果
+- `pt1 get-result <command_id>` - 手動查詢命令結果
+- `pt1 history [client_id] [limit]` - 查看執行歷史
 
-**方式 1：使用 X-API-Token header**
+### 檔案處理
+- `pt1 list-files <command_id>` - 列出命令產生的檔案
+- `pt1 download <command_id> <filename> [path]` - 下載檔案
+
+### 除錯工具
+- `pt1 list-transcripts [client_id] [limit]` - 列出執行記錄
+- `pt1 get-transcript <transcript_id>` - 查看完整執行記錄
+
+### 說明文件
+- `pt1 help [command]` - 顯示命令說明
+- `pt1 prompt` - AI agent 快速參考指南
+
+## 實用 PowerShell 命令範例
+
 ```bash
-curl -H "X-API-Token: your-secret-token-here" http://localhost:5566/command_history
+# 系統資訊
+pt1 send pc "Get-ComputerInfo | ConvertTo-Json"
+
+# Process 管理
+pt1 send pc "Get-Process | Select-Object -First 10 Name, CPU, Memory"
+
+# Service 狀態
+pt1 send pc "Get-Service | Export-Csv services.csv"
+
+# 磁碟空間
+pt1 send pc "Get-PSDrive -PSProvider FileSystem"
+
+# 事件日誌
+pt1 send pc "Get-EventLog -LogName System -Newest 5"
+
+# 網路設定
+pt1 send pc "Get-NetIPAddress | ConvertTo-Json"
 ```
-
-**方式 2：使用 Authorization Bearer header**
-```bash
-curl -H "Authorization: Bearer your-secret-token-here" http://localhost:5566/command_history
-```
-
-### 公開端點（不需要 Token）
-
-以下端點可以直接存取，不需要驗證：
-- `GET /` - 服務概述
-- `GET /ai_guide` - AI 助理使用指南
-
-## API 使用
-
-所有 API 呼叫（除了 `/` 和 `/ai_guide`）都需要提供 API token。
-
-### 發送指令
-```bash
-curl -X POST "http://localhost:5566/send_command" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Token: your-secret-token-here" \
-  -d '{"client_id": "client_name", "command": "Get-Process"}'
-```
-
-### 查詢結果
-```bash
-curl -H "X-API-Token: your-secret-token-here" \
-  "http://localhost:5566/get_result/{command_id}"
-```
-
-### 指令歷史
-```bash
-curl -H "X-API-Token: your-secret-token-here" \
-  "http://localhost:5566/command_history?stable_id=client_name&limit=10"
-```
-
-### AI 助理使用指南
-```bash
-curl "http://localhost:5566/ai_guide"
-```
-*回傳完整的 Markdown 格式使用指南，包含 API 說明、最佳實踐與範例*
 
 ## 專案結構
 
 ```
-├── main.py              # FastAPI 應用程式入口
-├── routers/             # API 路由模組
-│   ├── commands.py      # 指令管理 API
-│   ├── clients.py       # 客戶端管理
-│   └── dev_logs.py      # 開發日誌
-├── services/            # 業務邏輯服務
-│   ├── command_manager.py  # 指令管理核心
-│   └── providers.py     # 依賴注入提供者
-├── templates/           # PowerShell 客戶端腳本
-└── uploads/            # 檔案上傳目錄
+pt-1/
+├── pt1_cli/              # CLI 主程式
+│   ├── cli.py            # 命令分派器
+│   ├── core.py           # 核心功能與設定
+│   └── commands/         # 各命令實作
+├── main.py               # FastAPI server 入口
+├── routers/              # API 路由
+├── services/             # 業務邏輯
+├── templates/            # PowerShell client 腳本
+└── setup.py              # Python package 設定
 ```
 
-## 開發說明
+## 文件
 
-- **完整度**: 75% - 適合開發測試使用
-- **架構**: 基於 FastAPI + PowerShell HTTP Client
-- **儲存**: 目前使用記憶體暫存，計畫加入持久化
-- **部署指南**: 請參考 [VERIFICATION.md](VERIFICATION.md)
+- **CLI 使用**: 執行 `pt1 help` 查看完整命令說明
+- **AI Agent 指南**: 執行 `pt1 prompt` 取得 AI 專用快速參考
+- **Server 部署**: 請參考 [SERVER_SETUP.md](SERVER_SETUP.md)
+- **環境驗證**: 請參考 [VERIFICATION.md](VERIFICATION.md)
+- **API 文件**: 啟動 server 後訪問 `/ai_guide` 端點
+
+## 系統需求
+
+- Python 3.7+
+- Windows PowerShell 5.1+ (client 端)
+- 網路連線 (client 與 server 需可互通)
 
 ## 授權
 
