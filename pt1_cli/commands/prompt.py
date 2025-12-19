@@ -127,6 +127,7 @@ Export data:
 ✅ DO:
   - Always verify pt1 auth before executing commands
   - Use pt1 list-clients to check available machines
+  - If no clients available, guide user with: pt1 quickstart [client_id]
   - Use pt1 wait for automatic polling (easier than manual checking)
   - Check command history to avoid duplicate commands
   - Download files when commands create CSV/JSON outputs
