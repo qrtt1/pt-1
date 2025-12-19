@@ -37,15 +37,18 @@ Verify setup:
 
 ## Core Workflow
 
-1. List available Windows clients:
+1. Verify configuration (always do this first):
+   pt1 auth
+
+2. List available Windows clients:
    pt1 list-clients
 
-2. Send PowerShell command:
+3. Send PowerShell command:
    pt1 send <client_id> "<powershell_command>"
 
    Returns: command_id (save this for next steps)
 
-3. Wait for completion (auto-polling):
+4. Wait for completion (auto-polling):
    pt1 wait <command_id>
 
    Or manually check result:
