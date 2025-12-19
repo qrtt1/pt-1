@@ -12,7 +12,7 @@ class ClientInfo(BaseModel):
     client_id: str
     hostname: str
     username: str
-    stable_id: str  # 基於 hostname+username 的穩定 ID
+    stable_id: str  # Client 提供的 ID（自訂名稱或自動生成的 hash）
     first_seen: float
     last_seen: float
     status: str  # 'online', 'offline'
@@ -22,19 +22,29 @@ client_registry: Dict[str, ClientInfo] = {}
 OFFLINE_TIMEOUT = 30  # 30 秒無回應視為離線
 
 def generate_stable_id(hostname: str, username: str) -> str:
-    """基於 hostname 和 username 產生穩定的客戶端 ID"""
+    """基於 hostname 和 username 產生穩定的客戶端 ID
+
+    注意：此函數目前未被使用。Client 端已自行處理 ID 生成邏輯。
+    保留此函數以供未來可能需要。
+    """
     combined = f"{hostname.lower()}:{username.lower()}"
     return hashlib.md5(combined.encode()).hexdigest()[:12]
 
 def update_client_status(client_id: str, hostname: str, username: str):
-    """更新客戶端狀態"""
+    """更新客戶端狀態
+
+    使用 client 提供的 client_id 作為 stable_id。
+    Client 端已處理 ID 邏輯：自訂 ID 或自動生成的 hash。
+    """
     now = time.time()
-    stable_id = generate_stable_id(hostname, username)
-    
+    # 直接使用 client 提供的 client_id（可能是自訂名稱或自動生成的 hash）
+    stable_id = client_id
+
     if stable_id in client_registry:
         # 更新現有客戶端
         client = client_registry[stable_id]
-        client.client_id = client_id  # 可能會變動的 UUID
+        client.hostname = hostname  # 更新可能變動的資訊
+        client.username = username
         client.last_seen = now
         client.status = 'online'
     else:
@@ -48,7 +58,7 @@ def update_client_status(client_id: str, hostname: str, username: str):
             last_seen=now,
             status='online'
         )
-    
+
     return stable_id
 
 def check_offline_clients():
