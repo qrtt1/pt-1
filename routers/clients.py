@@ -14,15 +14,23 @@ def load_template(template_name: str) -> str:
         return f.read()
 
 @router.get("/win_agent.ps1", response_class=PlainTextResponse)
-def get_win_agent_script(request: Request, token: str = Depends(verify_token)):
-    """Get Windows production agent script with transcript logging"""
+def get_win_agent_script(
+    request: Request,
+    client_id: Optional[str] = None,
+    token: str = Depends(verify_token)
+):
+    """Get Windows production agent script with transcript logging
+
+    Query parameters:
+        client_id: Optional custom client ID (e.g., ?client_id=my-dev-pc)
+    """
     # 自動取得當前伺服器 URL
     base_url = f"{request.url.scheme}://{request.url.netloc}"
-    
+
     # 載入並格式化 Windows 生產版代理人腳本
     template = load_template("win_agent.ps1")
-    script = template.format(base_url=base_url)
-    
+    script = template.format(base_url=base_url, client_id=client_id or "", api_token=token)
+
     return script
 
 
@@ -34,7 +42,7 @@ def get_install_script(request: Request, token: str = Depends(verify_token)):
 
     # 載入並格式化 PowerShell script 範本
     template = load_template("client_install.ps1")
-    script = template.format(base_url=base_url)
+    script = template.format(base_url=base_url, api_token=token)
 
     return script
 

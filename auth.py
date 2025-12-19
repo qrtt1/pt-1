@@ -53,12 +53,16 @@ def load_tokens() -> set:
                     valid_tokens.add(token)
                 else:
                     invalid_count += 1
-                    print(f"[Auth] Warning: Invalid UUID token '{token}' for '{token_name}', skipping")
+                    print(
+                        f"[Auth] Warning: Invalid UUID token '{token}' for '{token_name}', skipping"
+                    )
 
             _tokens_cache = valid_tokens
 
             if invalid_count > 0:
-                print(f"[Auth] Successfully loaded {len(_tokens_cache)} valid token(s), skipped {invalid_count} invalid token(s)")
+                print(
+                    f"[Auth] Successfully loaded {len(_tokens_cache)} valid token(s), skipped {invalid_count} invalid token(s)"
+                )
             else:
                 print(f"[Auth] Successfully loaded {len(_tokens_cache)} token(s)")
 
@@ -77,9 +81,34 @@ def reload_tokens():
     return load_tokens()
 
 
+def get_token_info(token: str) -> dict:
+    """
+    取得 token 的 metadata
+
+    Returns:
+        dict: 包含 name 和 description，如果找不到則返回預設值
+    """
+    tokens_file = os.path.join(os.path.dirname(__file__), "tokens.json")
+
+    try:
+        with open(tokens_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            tokens_data = data.get("tokens", [])
+
+            for item in tokens_data:
+                if item.get("token") == token:
+                    return {
+                        "name": item.get("name", "unknown"),
+                        "description": item.get("description", ""),
+                    }
+    except:
+        pass
+
+    return {"name": "unknown", "description": ""}
+
+
 async def verify_token(
-    x_api_token: Optional[str] = Header(None),
-    authorization: Optional[str] = Header(None)
+    x_api_token: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
 ) -> str:
     """
     驗證 API token 的 dependency function

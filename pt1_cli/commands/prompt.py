@@ -1,0 +1,193 @@
+"""
+Prompt Command
+
+顯示 AI Agent 使用指南
+"""
+
+import sys
+from pt1_cli.core import Command
+
+
+class PromptCommand(Command):
+    """顯示 AI Agent 使用指南"""
+
+    def execute(self) -> int:
+        """執行 prompt 命令"""
+        print(
+            """
+PT-1 CLI - AI Agent Quick Reference
+================================================================================
+
+## What is PT-1 CLI?
+
+A command-line tool for remotely executing PowerShell commands on Windows
+machines. Designed for AI agents to interact with Windows systems without
+direct access.
+
+## Prerequisites
+
+Configuration file: ~/.pt-1/.env
+
+Required settings:
+  PT1_SERVER_URL=https://your-server.example.com
+  PT1_API_TOKEN=<your-api-token>
+
+Verify setup:
+  pt1 auth
+
+## Core Workflow
+
+1. List available Windows clients:
+   pt1 list-clients
+
+2. Send PowerShell command:
+   pt1 send <client_id> "<powershell_command>"
+
+   Returns: command_id (save this for next steps)
+
+3. Wait for completion (auto-polling):
+   pt1 wait <command_id>
+
+   Or manually check result:
+   pt1 get-result <command_id>
+
+## Common Usage Patterns
+
+### Pattern 1: Execute and Wait
+# Most common - send command and wait for result
+pt1 send my-pc "Get-Process | Select-Object -First 5"
+# Save the command_id from output
+pt1 wait <command_id>
+
+### Pattern 2: Generate CSV and Download
+pt1 send my-pc "Get-Service | Export-Csv services.csv -NoTypeInformation"
+pt1 wait <command_id>
+pt1 list-files <command_id>
+pt1 download <command_id> services.csv
+
+### Pattern 3: Check Command History
+pt1 history my-pc
+pt1 history my-pc 10  # Last 10 commands
+
+### Pattern 4: Debugging Failed Commands
+pt1 list-transcripts my-pc
+pt1 get-transcript <transcript_id>
+
+## All Available Commands
+
+Setup:
+  pt1 auth                 - Verify API token
+  pt1 quickstart [name]    - Generate client installation command
+
+Execution:
+  pt1 list-clients         - List available Windows machines
+  pt1 send <id> <cmd>      - Execute PowerShell command
+  pt1 wait <cmd_id>        - Wait for command completion
+  pt1 get-result <cmd_id>  - Get command result manually
+  pt1 history [id] [limit] - Show command history
+
+Files:
+  pt1 list-files <cmd_id>           - List output files
+  pt1 download <cmd_id> <filename>  - Download file
+
+Debug:
+  pt1 list-transcripts [id] [limit] - List execution transcripts
+  pt1 get-transcript <trans_id>     - View transcript content
+
+Help:
+  pt1 help [command]       - Show detailed help
+
+## PowerShell Command Examples
+
+System info:
+  Get-ComputerInfo | ConvertTo-Json
+  Get-WmiObject -Class Win32_OperatingSystem
+
+Process management:
+  Get-Process | Select-Object -First 10
+  Stop-Process -Name notepad -Force
+
+File operations:
+  Get-ChildItem C:\\ -Recurse -Filter "*.log"
+  Test-Path C:\\temp\\file.txt
+
+Service management:
+  Get-Service | Where-Object {$_.Status -eq 'Running'}
+  Restart-Service -Name wuauserv
+
+Export data:
+  Get-Process | Export-Csv processes.csv -NoTypeInformation
+  Get-Service | ConvertTo-Json | Out-File services.json
+
+## Best Practices for AI Agents
+
+✅ DO:
+  - Always verify pt1 auth before executing commands
+  - Use pt1 list-clients to check available machines
+  - Use pt1 wait for automatic polling (easier than manual checking)
+  - Check command history to avoid duplicate commands
+  - Download files when commands create CSV/JSON outputs
+  - Use structured output formats (ConvertTo-Json, Export-Csv)
+
+❌ DON'T:
+  - Don't assume immediate execution (commands are queued)
+  - Don't send commands requiring interactive input
+  - Don't ignore command failures (always check result status)
+  - Don't forget to save command_id from send command output
+
+## Status Values
+
+Command status flow:
+  pending -> completed (success)
+  pending -> failed (error)
+
+Always check status before processing results.
+
+## Error Handling
+
+If command fails:
+1. Check result with: pt1 get-result <command_id>
+2. Review error message in output
+3. Check transcript for details: pt1 list-transcripts <client_id>
+4. View full transcript: pt1 get-transcript <transcript_id>
+
+Common issues:
+- Client offline: Use pt1 list-clients to verify availability
+- PowerShell syntax error: Check command syntax
+- Permission denied: Command needs admin privileges on client
+- File not found: Verify paths exist on Windows client
+
+## Quick Start Example
+
+# 1. Verify configuration
+pt1 auth
+
+# 2. List available machines
+pt1 list-clients
+
+# 3. Send a simple command (replace 'my-pc' with actual client_id)
+pt1 send my-pc "Get-ComputerInfo | Select-Object CsName, WindowsVersion"
+
+# 4. Wait for result (use command_id from step 3)
+pt1 wait <command_id>
+
+# 5. Generate and download a report
+pt1 send my-pc "Get-Service | Export-Csv services.csv -NoTypeInformation"
+pt1 wait <command_id>
+pt1 download <command_id> services.csv
+
+## Additional Resources
+
+Detailed help for any command:
+  pt1 help <command>
+
+Example:
+  pt1 help send
+  pt1 help wait
+  pt1 help download
+
+================================================================================
+Generated by PT-1 CLI - PowerShell Remote Execution Tool
+"""
+        )
+        return 0

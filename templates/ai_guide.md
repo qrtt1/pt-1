@@ -96,10 +96,10 @@ X-API-Token: your-secret-token-here
 {{
   "clients": [
     {{
-      "client_id": "a62d60298124",
+      "client_id": "client-id-123",
       "hostname": "WORKSTATION-01",
       "username": "admin",
-      "stable_id": "a62d60298124",
+      "stable_id": "client-id-123",
       "first_seen": 1234567890.123,
       "last_seen": 1234567890.456,
       "status": "online"
@@ -135,8 +135,8 @@ X-API-Token: your-secret-token-here
 {{
   "transcripts": [
     {{
-      "transcript_id": "a62d60298124_20240914_143052_123",
-      "client_id": "a62d60298124",
+      "transcript_id": "client-id-123_20240914_143052_123",
+      "client_id": "client-id-123",
       "session_id": "session-001",
       "upload_time": "2024-09-14T14:30:52.123456",
       "file_size": 2048,
@@ -144,7 +144,7 @@ X-API-Token: your-secret-token-here
     }}
   ],
   "count": 1,
-  "filtered_by_client": "a62d60298124"
+  "filtered_by_client": "client-id-123"
 }}
 ```
 
@@ -195,7 +195,7 @@ X-API-Token: your-secret-token-here
    ```bash
    # List recent transcripts for a client
    curl -H "X-API-Token: your-secret-token-here" \
-     "{base_url}/agent_transcripts?client_id=a62d60298124&limit=5"
+     "{base_url}/agent_transcripts?client_id=client-id-123&limit=5"
 
    # Get full transcript content for debugging
    curl -H "X-API-Token: your-secret-token-here" \

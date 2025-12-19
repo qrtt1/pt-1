@@ -127,7 +127,7 @@ curl "http://localhost:5566/ai_guide"
 - **完整度**: 75% - 適合開發測試使用
 - **架構**: 基於 FastAPI + PowerShell HTTP Client
 - **儲存**: 目前使用記憶體暫存，計畫加入持久化
-- **改善計畫**: 請參考 [TODO.md](TODO.md)
+- **部署指南**: 請參考 [VERIFICATION.md](VERIFICATION.md)
 
 ## 授權
 
