@@ -182,6 +182,26 @@ class PT1Client:
         response.raise_for_status()
         return response.json()
 
+    def terminate_client(self, client_id: str) -> dict:
+        """
+        發送優雅終止信號給指定客戶端
+
+        Args:
+            client_id: 客戶端 ID
+
+        Returns:
+            dict: API 回應，包含 command_id 和狀態
+
+        Raises:
+            requests.HTTPError: 當請求失敗時
+        """
+        response = requests.post(
+            f"{self.base_url}/terminate_client/{client_id}",
+            headers=self.headers
+        )
+        response.raise_for_status()
+        return response.json()
+
 
 # 為了讓 show_config_help 使用 sys.stderr
 import sys

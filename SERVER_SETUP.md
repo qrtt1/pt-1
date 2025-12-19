@@ -80,6 +80,73 @@ curl -H "X-API-Token: your-secret-token-here" \
      http://localhost:5566/client_registry
 ```
 
+## 服務管理
+
+### Production 環境（使用 systemd）
+
+**程式碼位置**
+```bash
+# Production deployment path
+cd $HOME/workspace/pt-1
+```
+
+**更新程式碼並重啟服務**
+```bash
+# 1. 進入專案目錄
+cd $HOME/workspace/pt-1
+
+# 2. 拉取最新程式碼
+git fetch origin
+git pull origin main
+
+# 3. 重啟服務
+sudo systemctl restart powershell-executor.service
+
+# 4. 檢查服務狀態
+sudo systemctl status powershell-executor.service
+```
+
+**常用 systemctl 命令**
+```bash
+# 檢查服務狀態
+sudo systemctl status powershell-executor.service
+
+# 啟動服務
+sudo systemctl start powershell-executor.service
+
+# 停止服務
+sudo systemctl stop powershell-executor.service
+
+# 重啟服務
+sudo systemctl restart powershell-executor.service
+
+# 查看服務日誌
+sudo journalctl -u powershell-executor.service -f
+
+# 開機自動啟動
+sudo systemctl enable powershell-executor.service
+```
+
+### 開發環境
+
+**直接執行（適合開發測試）**
+```bash
+# 在專案目錄下
+uvicorn main:app --host 0.0.0.0 --port 5566 --reload
+```
+
+**使用 screen（適合臨時部署）**
+```bash
+# 建立 screen session
+screen -S pt1
+
+# 執行 server
+uvicorn main:app --host 0.0.0.0 --port 5566
+
+# 離開 session (Ctrl+A, D)
+# 重新連接：screen -r pt1
+```
+
 ## API Token 驗證
 
 除了以下公開端點外，所有 API 都需要提供有效的 API token：
@@ -183,21 +250,6 @@ iwr 'http://your-server:5566/client_install.ps1?single_run=true' -UseBasicParsin
 3. 限制 server 的網路存取範圍
 4. 定期更新 tokens
 5. 監控異常的 API 呼叫
-
-### 服務管理
-```bash
-# 使用 systemd（Linux）
-sudo systemctl enable pt1-server
-sudo systemctl start pt1-server
-
-# 使用 supervisor
-supervisorctl start pt1-server
-
-# 使用 screen（開發環境）
-screen -S pt1
-uvicorn main:app --host 0.0.0.0 --port 5566
-# Ctrl+A, D to detach
-```
 
 ### 監控與日誌
 ```bash

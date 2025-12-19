@@ -284,3 +284,32 @@ async def upload_transcript(
     except Exception as e:
         print(f"Error uploading transcript for {command_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to upload transcript: {str(e)}")
+
+@router.post("/terminate_client/{client_id}")
+def terminate_client(client_id: str, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
+    """Send graceful termination signal to client"""
+    from routers.client_registry import client_registry
+
+    # Check if client exists
+    if client_id not in client_registry:
+        raise HTTPException(status_code=404, detail=f"Client '{client_id}' not found")
+
+    # Send special graceful exit command
+    special_command = "@PT1:GRACEFUL_EXIT@"
+
+    try:
+        command_id = cmd_manager.queue_command(client_id, special_command)
+
+        print(f"Graceful termination signal sent to client '{client_id}' (command_id: {command_id})")
+
+        return {
+            "status": "termination_signal_sent",
+            "client_id": client_id,
+            "command_id": command_id,
+            "message": "Graceful shutdown initiated"
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Error sending termination signal to {client_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send termination signal: {str(e)}")

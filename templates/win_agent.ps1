@@ -101,11 +101,28 @@ while ($true) {{
     Start-Transcript -Path $transcriptPath -Force | Out-Null
 
     try {{
-        # 靜默執行客戶端腳本，不顯示 session 資訊
+        # 下載並儲存客戶端腳本到檔案
         $clientScript = Invoke-RestMethod -Uri "$serverUrl/client_install.ps1" -Headers @{{"X-API-Token"=$apiToken}} -UseBasicParsing
-        Invoke-Expression $clientScript
+        $clientScriptPath = Join-Path $workDir "$sessionId-client.ps1"
+        $clientScript | Out-File -FilePath $clientScriptPath -Encoding UTF8
 
-        # 正常完成時也靜默，直接重啟
+        # 執行客戶端腳本並捕獲 exit code
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $clientScriptPath
+        $exitCode = $LASTEXITCODE
+
+        # 清理腳本檔案
+        Remove-Item $clientScriptPath -Force -ErrorAction SilentlyContinue
+
+        # 檢查是否為優雅退出
+        if ($exitCode -eq 0) {{
+            Write-Host "[$sessionId] Received graceful exit signal from server" -ForegroundColor Cyan
+            Write-Host "Agent stopping gracefully..." -ForegroundColor Green
+
+            # 跳出主迴圈，終止 agent
+            break
+        }}
+
+        # 正常完成（非 exit 0）時，靜默重啟
         Start-Sleep -Seconds 3
 
     }} catch {{

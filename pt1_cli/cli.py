@@ -19,6 +19,7 @@ from pt1_cli.commands.list_files import ListFilesCommand
 from pt1_cli.commands.download import DownloadCommand
 from pt1_cli.commands.list_transcripts import ListTranscriptsCommand
 from pt1_cli.commands.get_transcript import GetTranscriptCommand
+from pt1_cli.commands.terminate import TerminateCommand
 from pt1_cli.commands.help import HelpCommand
 from pt1_cli.commands.prompt import PromptCommand
 
@@ -45,6 +46,7 @@ def main():
         )
         print("  list-transcripts  List agent execution transcripts", file=sys.stderr)
         print("  get-transcript    Get transcript content", file=sys.stderr)
+        print("  terminate         Terminate a client gracefully", file=sys.stderr)
         print("  help              Show detailed help", file=sys.stderr)
         print("  prompt            Show AI agent quick reference", file=sys.stderr)
         print("", file=sys.stderr)
@@ -86,6 +88,9 @@ def main():
         sys.exit(cmd.execute())
     elif command == "get-transcript":
         cmd = GetTranscriptCommand()
+        sys.exit(cmd.execute())
+    elif command == "terminate":
+        cmd = TerminateCommand()
         sys.exit(cmd.execute())
     elif command == "help":
         cmd = HelpCommand()
