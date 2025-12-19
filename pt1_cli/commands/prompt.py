@@ -76,6 +76,11 @@ pt1 history my-pc 10  # Last 10 commands
 pt1 list-transcripts my-pc
 pt1 get-transcript <transcript_id>
 
+### Pattern 5: Graceful Client Shutdown
+pt1 terminate my-pc
+# Client will cleanup and shutdown gracefully
+# Command verifies client goes offline
+
 ## All Available Commands
 
 Setup:
@@ -88,6 +93,9 @@ Execution:
   pt1 wait <cmd_id>        - Wait for command completion
   pt1 get-result <cmd_id>  - Get command result manually
   pt1 history [id] [limit] - Show command history
+
+Management:
+  pt1 terminate <id>       - Gracefully shutdown a client
 
 Files:
   pt1 list-files <cmd_id>           - List output files

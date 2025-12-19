@@ -64,6 +64,45 @@ Description:
 Example:
   pt1 list-clients
 """,
+    "terminate": """
+pt1 terminate - Gracefully terminate a client
+
+Usage:
+  pt1 terminate <client_id>
+
+Arguments:
+  client_id    要終止的 client ID
+
+Description:
+  發送優雅終止信號給指定的 Windows 客戶端。
+
+  Client 會在收到信號後：
+  - 完成當前正在執行的命令
+  - 上傳執行記錄 (transcript)
+  - 提交最後的結果
+  - 優雅地關閉並退出
+
+  命令會自動輪詢驗證 client 是否已離線（最多等待 30 秒）。
+
+When to use:
+  - 需要更新 client 端程式碼
+  - 需要重啟 Windows 機器
+  - 需要停止不再需要的 client
+  - 需要清理測試環境
+
+Examples:
+  pt1 terminate my-dev-pc
+  pt1 terminate builder
+  pt1 terminate test-env-01
+
+Note:
+  此命令不會強制終止進程，而是發送信號讓 client 優雅退出。
+  如果 client 無回應，可能需要手動在 Windows 機器上終止進程。
+
+See also:
+  pt1 list-clients           查看所有 clients 狀態
+  pt1 quickstart <client_id>  重新啟動 client
+""",
     "send": """
 pt1 send - Send PowerShell command to a client
 
@@ -300,6 +339,7 @@ class HelpCommand(Command):
         print("")
         print("Client Management:")
         print("  list-clients      List all registered clients")
+        print("  terminate         Gracefully terminate a client")
         print("")
         print("Command Execution:")
         print("  send              Send PowerShell command to a client")
