@@ -106,23 +106,27 @@ while ($true) {{
         $clientScriptPath = Join-Path $workDir "$sessionId-client.ps1"
         $clientScript | Out-File -FilePath $clientScriptPath -Encoding UTF8
 
-        # 執行客戶端腳本並捕獲 exit code
+        # 執行客戶端腳本
         & powershell -NoProfile -ExecutionPolicy Bypass -File $clientScriptPath
-        $exitCode = $LASTEXITCODE
 
         # 清理腳本檔案
         Remove-Item $clientScriptPath -Force -ErrorAction SilentlyContinue
 
-        # 檢查是否為優雅退出
-        if ($exitCode -eq 0) {{
+        # Check for graceful exit flag (created by client_install.ps1)
+        $gracefulExitFlag = Join-Path $workDir "GRACEFUL_EXIT.flag"
+        if (Test-Path $gracefulExitFlag) {{
+            Write-Host "[$sessionId] Detected flag: $gracefulExitFlag" -ForegroundColor Gray
             Write-Host "[$sessionId] Received graceful exit signal from server" -ForegroundColor Cyan
             Write-Host "Agent stopping gracefully..." -ForegroundColor Green
+
+            # Clean up flag
+            Remove-Item $gracefulExitFlag -Force -ErrorAction SilentlyContinue
 
             # 跳出主迴圈，終止 agent
             break
         }}
 
-        # 正常完成（非 exit 0）時，靜默重啟
+        # 正常完成時，靜默重啟
         Start-Sleep -Seconds 3
 
     }} catch {{

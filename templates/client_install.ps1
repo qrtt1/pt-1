@@ -149,6 +149,10 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
                     # Ignore error if submission fails
                 }}
 
+                # Create graceful exit flag for win_agent to detect
+                $gracefulExitFlag = "GRACEFUL_EXIT.flag"
+                "GRACEFUL_TERMINATION" | Out-File -FilePath $gracefulExitFlag -Encoding UTF8
+                Write-Host "[$stableId] Created flag: $((Get-Location).Path)\$gracefulExitFlag" -ForegroundColor Gray
                 Write-Host "[$stableId] Goodbye!" -ForegroundColor Green
                 exit 0
             }}
@@ -229,3 +233,7 @@ if (-not $commandExecuted) {{
     $skipTranscriptFlag = "SKIP_TRANSCRIPT.flag"
     "NO_COMMAND_RECEIVED" | Out-File -FilePath $skipTranscriptFlag -Encoding UTF8
 }}
+
+# Normal exit
+# Note: GRACEFUL_EXIT.flag is only created when @PT1:GRACEFUL_EXIT@ signal is received
+exit 0
