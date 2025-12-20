@@ -1,12 +1,22 @@
+import json
 import os
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple, List
 from fastapi import Header, HTTPException, status
 
-# 旋轉間隔（秒），可透過環境變數覆蓋
-def _get_rotation_seconds() -> int:
-    default_seconds = 86400  # 24 小時
+# Path to tokens file (persistent source of truth)
+TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
+
+# In-memory state
+_active_token: Optional[str] = None
+_active_expiry: Optional[datetime] = None
+_active_name: str = "rotating-token"
+_active_description: str = "Auto-rotated token (persistent)"
+
+# Default rotation interval (seconds) if not specified on token
+def _default_rotation_seconds() -> int:
+    default_seconds = 86400  # 24 hours
     value = os.getenv("PT1_TOKEN_ROTATION_SECONDS")
     if not value:
         return default_seconds
@@ -17,15 +27,8 @@ def _get_rotation_seconds() -> int:
         return default_seconds
 
 
-TOKEN_ROTATION_SECONDS = _get_rotation_seconds()
-
-# 全域追蹤當前 token 與到期時間
-_current_token: Optional[str] = None
-_token_expiry: Optional[datetime] = None
-
-
 def is_valid_uuid(token: str) -> bool:
-    """檢查字串是否為合法的 UUID 格式"""
+    """Check if string is a valid UUID."""
     try:
         uuid.UUID(token)
         return True
@@ -33,82 +36,194 @@ def is_valid_uuid(token: str) -> bool:
         return False
 
 
-def _log_active_token():
-    """將目前 token 與到期時間印到 log，便於 journalctl/systemctl 查看"""
-    expiry_str = _token_expiry.isoformat() + "Z" if _token_expiry else "unknown"
-    print(
-        f"[Auth] Active API token: {_current_token} (expires at UTC {expiry_str}, rotation every {TOKEN_ROTATION_SECONDS}s)"
-    )
+def _load_tokens_file() -> dict:
+    """Load tokens.json content, return dict with 'tokens' list."""
+    if not os.path.exists(TOKENS_FILE):
+        return {"tokens": []}
+
+    with open(TOKENS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
-def rotate_token(force: bool = False) -> str:
+def _persist_tokens(data: dict):
+    """Persist tokens.json (overwrites file)."""
+    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+
+
+def _parse_token_entry(item: dict) -> Optional[Tuple[str, str, str, Optional[int], Optional[datetime]]]:
     """
-    旋轉並取得新的 token。若尚未到期且未強制，則維持當前 token。
-    回傳目前有效的 token。
-    """
-    global _current_token, _token_expiry
-    now = datetime.utcnow()
-
-    if _current_token and _token_expiry and _token_expiry > now and not force:
-        return _current_token
-
-    _current_token = str(uuid.uuid4())
-    _token_expiry = now + timedelta(seconds=TOKEN_ROTATION_SECONDS)
-    _log_active_token()
-    return _current_token
-
-
-def get_active_token() -> str:
-    """確保有有效 token 並回傳"""
-    return rotate_token(force=False)
-
-
-def get_token_info(token: str) -> dict:
-    """
-    取得 token 的 metadata
+    Parse a token entry.
 
     Returns:
-        dict: 包含 name 和 description，如果找不到則返回預設值
+        tuple: (token, name, description, rotation_seconds, expires_at)
     """
-    active_token = get_active_token()
-    if token == active_token:
-        expiry_str = _token_expiry.isoformat() + "Z" if _token_expiry else "unknown"
-        return {
-            "name": "rotating-token",
-            "description": f"Auto-rotated in-memory token (expires at UTC {expiry_str})",
+    token = item.get("token", "")
+    name = item.get("name", "unknown")
+    description = item.get("description", "")
+    rotation_seconds = item.get("rotation_seconds")
+    expires_at_raw = item.get("expires_at")
+
+    if not is_valid_uuid(token):
+        print(f"[Auth] Warning: Invalid UUID token '{token}' for '{name}', skipping")
+        return None
+
+    expires_at = None
+    if expires_at_raw:
+        try:
+            expires_at = datetime.fromisoformat(expires_at_raw.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            print(f"[Auth] Warning: Invalid expires_at '{expires_at_raw}' for '{name}', ignoring expiry")
+            expires_at = None
+
+    return token, name, description, rotation_seconds, expires_at
+
+
+def _select_active_token(tokens_data: List[dict]) -> Tuple[str, str, str, datetime, List[dict]]:
+    """
+    Select an active token from tokens.json with rotation support.
+
+    Returns:
+        tuple: (active_token, name, description, expiry, updated_tokens_data)
+    """
+    now = datetime.utcnow()
+    default_rotation = _default_rotation_seconds()
+    updated_entries = []
+    active_candidate = None
+
+    for item in tokens_data:
+        parsed = _parse_token_entry(item)
+        if not parsed:
+            continue
+
+        token, name, description, rotation_seconds, expires_at = parsed
+        rotation = rotation_seconds or default_rotation
+
+        if expires_at and expires_at > now:
+            # Not expired; keep as-is
+            updated_entries.append(
+                {
+                    "token": token,
+                    "name": name,
+                    "description": description,
+                    "rotation_seconds": rotation_seconds,
+                    "expires_at": expires_at.isoformat() + "Z",
+                }
+            )
+            if not active_candidate:
+                active_candidate = (token, name, description, expires_at)
+            continue
+
+        # Expired or no expiry; rotate if rotation is defined
+        new_token = str(uuid.uuid4())
+        new_expiry = now + timedelta(seconds=rotation)
+        updated_entries.append(
+            {
+                "token": new_token,
+                "name": name,
+                "description": description,
+                "rotation_seconds": rotation_seconds,
+                "expires_at": new_expiry.isoformat() + "Z",
+            }
+        )
+        if not active_candidate:
+            active_candidate = (new_token, name, description, new_expiry)
+
+    if not active_candidate:
+        # No valid tokens; generate a default one
+        new_token = str(uuid.uuid4())
+        new_expiry = now + timedelta(seconds=default_rotation)
+        generated = {
+            "token": new_token,
+            "name": "generated-default",
+            "description": "Generated because tokens.json had no valid entries",
+            "rotation_seconds": default_rotation,
+            "expires_at": new_expiry.isoformat() + "Z",
         }
+        updated_entries.append(generated)
+        active_candidate = (
+            generated["token"],
+            generated["name"],
+            generated["description"],
+            new_expiry,
+        )
 
-    return {"name": "unknown", "description": ""}
+    return active_candidate[0], active_candidate[1], active_candidate[2], active_candidate[3], updated_entries
 
 
-def get_token_expiry() -> Optional[datetime]:
-    """取得目前 token 的到期時間（UTC）。"""
-    get_active_token()
-    return _token_expiry
+def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
+    """Get active token and metadata; rotates/persists if needed."""
+    global _active_token, _active_expiry, _active_name, _active_description
+
+    now = datetime.utcnow()
+    if _active_token and _active_expiry and _active_expiry > now:
+        return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
+
+    data = _load_tokens_file()
+    tokens_data = data.get("tokens", [])
+
+    active_token, name, description, expiry, updated_entries = _select_active_token(tokens_data)
+    data["tokens"] = updated_entries
+    _persist_tokens(data)
+
+    _active_token = active_token
+    _active_expiry = expiry
+    _active_name = name
+    _active_description = description
+
+    expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
+    print(
+        f"[Auth] Active API token: {_active_token} (expires at UTC {expiry_str}, rotation every {_default_rotation_seconds()}s)"
+    )
+
+    return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
+
+
+def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
+    """Get active token and metadata; rotates/persists if needed."""
+    global _active_token, _active_expiry, _active_name, _active_description
+
+    now = datetime.utcnow()
+    if _active_token and _active_expiry and _active_expiry > now:
+        return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
+
+    data = _load_tokens_file()
+    tokens_data = data.get("tokens", [])
+
+    active_token, name, description, expiry, updated_entries = _select_active_token(tokens_data)
+    data["tokens"] = updated_entries
+    _persist_tokens(data)
+
+    _active_token = active_token
+    _active_expiry = expiry
+    _active_name = name
+    _active_description = description
+
+    expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
+    print(
+        f"[Auth] Active API token: {_active_token} (expires at UTC {expiry_str}, rotation every {_default_rotation_seconds()}s)"
+    )
+
+    return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
 
 
 async def verify_token(
     x_api_token: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
 ) -> str:
     """
-    驗證 API token 的 dependency function
+    Validate API token (FastAPI dependency).
 
-    支援兩種方式：
-    1. X-API-Token header
-    2. Authorization: Bearer <token> header
-
-    如果 token 無效，會拋出 401 錯誤
+    Supported headers:
+    1. X-API-Token
+    2. Authorization: Bearer <token>
     """
     token = None
 
-    # 優先使用 X-API-Token
     if x_api_token:
         token = x_api_token
-    # 其次嘗試從 Authorization header 提取
     elif authorization and authorization.startswith("Bearer "):
-        token = authorization[7:]  # 移除 "Bearer " 前綴
+        token = authorization[7:]  # Remove "Bearer " prefix
 
-    # 如果沒有提供 token
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,8 +231,7 @@ async def verify_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 驗證 token 是否有效
-    active_token = get_active_token()
+    active_token, _, _ = get_active_token_with_metadata()
     if token != active_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
