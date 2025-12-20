@@ -179,6 +179,26 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
 
 
+def get_token_info(token: str) -> dict:
+    """
+    Retrieve token metadata for auth verification endpoint.
+    """
+    active_token, expiry, metadata = get_active_token_with_metadata()
+    if token == active_token:
+        expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
+        desc = metadata.get("description", "")
+        if desc:
+            desc = f"{desc} (expires at UTC {expiry_str})"
+        else:
+            desc = f"Expires at UTC {expiry_str}"
+        return {
+            "name": metadata.get("name", "unknown"),
+            "description": desc,
+        }
+
+    return {"name": "unknown", "description": ""}
+
+
 def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     """Get active token and metadata; rotates/persists if needed."""
     global _active_token, _active_expiry, _active_name, _active_description
