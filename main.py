@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI
 from routers import root, clients, commands, client_registry, transcripts, auth
+from auth import get_active_token_with_metadata, get_token_expiry, _default_rotation_seconds
 
 app = FastAPI()
 
@@ -21,6 +22,11 @@ async def startup_event():
     print("                        DIAGNOSTIC SERVER STARTED")
     print("="*80)
     print("  Server URL  : http://localhost:5566")
+    active_token, expiry, metadata = get_active_token_with_metadata()
+    expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
+    print(f"  Active API token: {active_token}")
+    print(f"  Token expires (UTC): {expiry_str}")
+    print(f"  Rotation interval (default): {_default_rotation_seconds()} seconds")
     
     if public_url:
         print(f"  Public URL  : {public_url}")
