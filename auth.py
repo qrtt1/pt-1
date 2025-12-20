@@ -199,6 +199,12 @@ def get_token_info(token: str) -> dict:
     return {"name": "unknown", "description": ""}
 
 
+def get_token_expiry() -> Optional[datetime]:
+    """Get current token expiry (UTC)."""
+    _, expiry, _ = get_active_token_with_metadata()
+    return expiry
+
+
 def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     """Get active token and metadata; rotates/persists if needed."""
     global _active_token, _active_expiry, _active_name, _active_description
