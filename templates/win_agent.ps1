@@ -61,7 +61,7 @@ function Upload-SessionTranscript {{
             return $false
         }}
 
-        # Upload transcript to server (靜默執行)
+        # Upload transcript to server silently
         $uploadUri = "$ServerUrl/agent_transcript/$ClientId"
         $fileBytes = [System.IO.File]::ReadAllBytes($TranscriptPath)
         $fileEnc = [System.Text.Encoding]::GetEncoding('UTF-8').GetString($fileBytes)
@@ -101,15 +101,15 @@ while ($true) {{
     Start-Transcript -Path $transcriptPath -Force | Out-Null
 
     try {{
-        # 下載並儲存客戶端腳本到檔案
+        # Download and save client script to file
         $clientScript = Invoke-RestMethod -Uri "$serverUrl/client_install.ps1" -Headers @{{"X-API-Token"=$apiToken}} -UseBasicParsing
         $clientScriptPath = Join-Path $workDir "$sessionId-client.ps1"
         $clientScript | Out-File -FilePath $clientScriptPath -Encoding UTF8
 
-        # 執行客戶端腳本
+        # Execute client script
         & powershell -NoProfile -ExecutionPolicy Bypass -File $clientScriptPath
 
-        # 清理腳本檔案
+        # Cleanup client script file
         Remove-Item $clientScriptPath -Force -ErrorAction SilentlyContinue
 
         # Check for graceful exit flag (created by client_install.ps1)
@@ -122,11 +122,11 @@ while ($true) {{
             # Clean up flag
             Remove-Item $gracefulExitFlag -Force -ErrorAction SilentlyContinue
 
-            # 跳出主迴圈，終止 agent
+            # Exit main loop and stop agent
             break
         }}
 
-        # 正常完成時，靜默重啟
+        # Normal completion: quiet restart
         Start-Sleep -Seconds 3
 
     }} catch {{
@@ -138,7 +138,7 @@ while ($true) {{
             }} catch {{}}
         }}
 
-        # 401 視為認證錯誤，直接停止 agent，避免無限重試
+        # Treat 401 as auth failure: stop agent to avoid infinite retries
         if ($statusCode -eq 401 -or $errorMsg -like "*401*Unauthorized*") {{
             Write-Host "[$sessionId] Received 401 Unauthorized, stopping agent (check API token/rotation)" -ForegroundColor Red
             break
@@ -156,7 +156,7 @@ while ($true) {{
         $shouldUploadTranscript = -not (Test-Path $skipTranscriptFlag)
 
         if ($shouldUploadTranscript) {{
-            # Upload transcript using dedicated function (靜默上傳，不顯示訊息)
+            # Upload transcript using dedicated function (silent, no output)
             $uploadSuccess = Upload-SessionTranscript -TranscriptPath $transcriptPath -SessionId $sessionId -ClientId $stableId -ServerUrl $serverUrl
         }} else {{
             Write-Host "[$sessionId] No command executed - transcript upload skipped" -ForegroundColor Gray
