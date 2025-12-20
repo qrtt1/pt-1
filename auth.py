@@ -1,11 +1,27 @@
-import json
 import os
 import uuid
+from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import Header, HTTPException, status
 
-# 全局變數來快取 tokens
-_tokens_cache: Optional[set] = None
+# 旋轉間隔（秒），可透過環境變數覆蓋
+def _get_rotation_seconds() -> int:
+    default_seconds = 86400  # 24 小時
+    value = os.getenv("PT1_TOKEN_ROTATION_SECONDS")
+    if not value:
+        return default_seconds
+    try:
+        parsed = int(value)
+        return parsed if parsed > 0 else default_seconds
+    except ValueError:
+        return default_seconds
+
+
+TOKEN_ROTATION_SECONDS = _get_rotation_seconds()
+
+# 全域追蹤當前 token 與到期時間
+_current_token: Optional[str] = None
+_token_expiry: Optional[datetime] = None
 
 
 def is_valid_uuid(token: str) -> bool:
@@ -17,68 +33,34 @@ def is_valid_uuid(token: str) -> bool:
         return False
 
 
-def load_tokens() -> set:
-    """載入 tokens.json 檔案並回傳有效的 token 集合"""
-    global _tokens_cache
-
-    # 如果已經載入過，直接回傳快取
-    if _tokens_cache is not None:
-        return _tokens_cache
-
-    tokens_file = os.path.join(os.path.dirname(__file__), "tokens.json")
-    tokens_file_abs = os.path.abspath(tokens_file)
-
-    print(f"[Auth] Loading tokens from: {tokens_file_abs}")
-
-    # 如果檔案不存在，回傳空集合
-    if not os.path.exists(tokens_file):
-        print(f"[Auth] Warning: tokens.json not found at {tokens_file_abs}")
-        _tokens_cache = set()
-        return _tokens_cache
-
-    try:
-        with open(tokens_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            tokens_data = data.get("tokens", [])
-
-            # 驗證每個 token 是否為合法的 UUID
-            valid_tokens = set()
-            invalid_count = 0
-
-            for item in tokens_data:
-                token = item.get("token", "")
-                token_name = item.get("name", "unknown")
-
-                if is_valid_uuid(token):
-                    valid_tokens.add(token)
-                else:
-                    invalid_count += 1
-                    print(
-                        f"[Auth] Warning: Invalid UUID token '{token}' for '{token_name}', skipping"
-                    )
-
-            _tokens_cache = valid_tokens
-
-            if invalid_count > 0:
-                print(
-                    f"[Auth] Successfully loaded {len(_tokens_cache)} valid token(s), skipped {invalid_count} invalid token(s)"
-                )
-            else:
-                print(f"[Auth] Successfully loaded {len(_tokens_cache)} token(s)")
-
-            return _tokens_cache
-    except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
-        # 如果檔案格式錯誤，回傳空集合
-        print(f"[Auth] Error loading tokens: {e}")
-        _tokens_cache = set()
-        return _tokens_cache
+def _log_active_token():
+    """將目前 token 與到期時間印到 log，便於 journalctl/systemctl 查看"""
+    expiry_str = _token_expiry.isoformat() + "Z" if _token_expiry else "unknown"
+    print(
+        f"[Auth] Active API token: {_current_token} (expires at UTC {expiry_str}, rotation every {TOKEN_ROTATION_SECONDS}s)"
+    )
 
 
-def reload_tokens():
-    """重新載入 tokens（用於手動更新 tokens.json 後）"""
-    global _tokens_cache
-    _tokens_cache = None
-    return load_tokens()
+def rotate_token(force: bool = False) -> str:
+    """
+    旋轉並取得新的 token。若尚未到期且未強制，則維持當前 token。
+    回傳目前有效的 token。
+    """
+    global _current_token, _token_expiry
+    now = datetime.utcnow()
+
+    if _current_token and _token_expiry and _token_expiry > now and not force:
+        return _current_token
+
+    _current_token = str(uuid.uuid4())
+    _token_expiry = now + timedelta(seconds=TOKEN_ROTATION_SECONDS)
+    _log_active_token()
+    return _current_token
+
+
+def get_active_token() -> str:
+    """確保有有效 token 並回傳"""
+    return rotate_token(force=False)
 
 
 def get_token_info(token: str) -> dict:
@@ -88,23 +70,21 @@ def get_token_info(token: str) -> dict:
     Returns:
         dict: 包含 name 和 description，如果找不到則返回預設值
     """
-    tokens_file = os.path.join(os.path.dirname(__file__), "tokens.json")
-
-    try:
-        with open(tokens_file, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            tokens_data = data.get("tokens", [])
-
-            for item in tokens_data:
-                if item.get("token") == token:
-                    return {
-                        "name": item.get("name", "unknown"),
-                        "description": item.get("description", ""),
-                    }
-    except:
-        pass
+    active_token = get_active_token()
+    if token == active_token:
+        expiry_str = _token_expiry.isoformat() + "Z" if _token_expiry else "unknown"
+        return {
+            "name": "rotating-token",
+            "description": f"Auto-rotated in-memory token (expires at UTC {expiry_str})",
+        }
 
     return {"name": "unknown", "description": ""}
+
+
+def get_token_expiry() -> Optional[datetime]:
+    """取得目前 token 的到期時間（UTC）。"""
+    get_active_token()
+    return _token_expiry
 
 
 async def verify_token(
@@ -137,8 +117,8 @@ async def verify_token(
         )
 
     # 驗證 token 是否有效
-    valid_tokens = load_tokens()
-    if token not in valid_tokens:
+    active_token = get_active_token()
+    if token != active_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="無效的 API token",
