@@ -300,7 +300,11 @@ def terminate_client(client_id: str, cmd_manager: CommandManager = Depends(get_c
     try:
         command_id = cmd_manager.queue_command(client_id, special_command)
 
-        print(f"Graceful termination signal sent to client '{client_id}' (command_id: {command_id})")
+        print(f"=" * 80)
+        print(f"TERMINATE CLIENT: '{client_id}'")
+        print(f"Command ID: {command_id}")
+        print(f"Special Command: {special_command}")
+        print(f"=" * 80)
 
         return {
             "status": "termination_signal_sent",
