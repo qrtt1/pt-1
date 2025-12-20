@@ -131,6 +131,19 @@ while ($true) {{
 
     }} catch {{
         $errorMsg = $_.Exception.Message
+        $statusCode = $null
+        if ($_.Exception.Response) {{
+            try {{
+                $statusCode = $_.Exception.Response.StatusCode.value__
+            }} catch {{}}
+        }}
+
+        # 401 視為認證錯誤，直接停止 agent，避免無限重試
+        if ($statusCode -eq 401 -or $errorMsg -like "*401*Unauthorized*") {{
+            Write-Host "[$sessionId] Received 401 Unauthorized, stopping agent (check API token/rotation)" -ForegroundColor Red
+            break
+        }}
+
         Write-Host "[$sessionId] Session failed: $errorMsg" -ForegroundColor Red
         Write-Host "[$sessionId] Auto-healing: Retrying in 10 seconds..." -ForegroundColor Yellow
         Start-Sleep -Seconds 10
