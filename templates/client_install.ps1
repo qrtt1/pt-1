@@ -1,6 +1,11 @@
 # PowerShell Execution Unit
 
 # Set UTF-8 encoding for proper Chinese character display
+try {{
+    chcp 65001 | Out-Null
+}} catch {{
+    # Ignore if chcp fails
+}}
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
