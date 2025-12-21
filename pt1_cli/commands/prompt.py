@@ -71,6 +71,7 @@ pt1 download <command_id> services.csv
 ### Pattern 3: Check Command History
 pt1 history my-pc
 pt1 history my-pc 10  # Last 10 commands
+pt1 history -v my-pc  # Include verbose client API calls
 
 ### Pattern 4: Debugging Failed Commands
 pt1 list-transcripts my-pc
@@ -92,7 +93,7 @@ Execution:
   pt1 send <id> <cmd>      - Execute PowerShell command
   pt1 wait <cmd_id>        - Wait for command completion
   pt1 get-result <cmd_id>  - Get command result manually
-  pt1 history [id] [limit] - Show command history
+  pt1 history [-v] [id] [limit] - Show command history
 
 Management:
   pt1 terminate <id>       - Gracefully shutdown a client

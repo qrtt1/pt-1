@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI
 from routers import root, clients, commands, client_registry, transcripts, auth
 from auth import get_active_token_with_metadata, get_token_expiry, _default_rotation_seconds
+from services.client_history import client_history_middleware_factory
 
 app = FastAPI()
 
@@ -12,6 +13,8 @@ app.include_router(commands.router)
 app.include_router(client_registry.router)
 app.include_router(transcripts.router)
 app.include_router(auth.router)
+
+app.middleware("http")(client_history_middleware_factory())
 
 @app.on_event("startup")
 async def startup_event():

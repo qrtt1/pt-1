@@ -179,24 +179,27 @@ See also:
 pt1 history - Show command execution history
 
 Usage:
-  pt1 history [client_id] [limit]
+  pt1 history [-v] <client_id> [limit]
 
 Arguments:
-  client_id    過濾特定 client（選填）
+  client_id    過濾特定 client（必填）
   limit        限制顯示筆數（選填，預設 50）
+  -v           顯示詳細 client API calls（包含高頻事件）
 
 Description:
   顯示命令執行歷史記錄，包含：
   - Command ID
-  - Client ID
-  - Command text
-  - Status
+  - Status code 或狀態
+  - Type（command / client_api）
+  - Detail（含 API args）
   - Timestamp
 
+  預設會隱藏高頻事件（例如 /next_command、/register_client）。
+
 Examples:
-  pt1 history                查看所有歷史
-  pt1 history my-dev-pc      查看特定 client 的歷史
-  pt1 history my-dev-pc 20   查看最近 20 筆
+  pt1 history my-dev-pc
+  pt1 history my-dev-pc 20
+  pt1 history -v my-dev-pc 20
 """,
     "list-files": """
 pt1 list-files - List files from command result
@@ -345,7 +348,7 @@ class HelpCommand(Command):
         print("  send              Send PowerShell command to a client")
         print("  get-result        Get command execution result")
         print("  wait              Wait for command completion (auto-polling)")
-        print("  history           Show command execution history")
+        print("  history [-v]      Show command execution history")
         print("")
         print("File Management:")
         print("  list-files        List files from command result")

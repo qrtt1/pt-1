@@ -39,7 +39,7 @@ def main():
         print("  send              Send command to a client", file=sys.stderr)
         print("  get-result        Get command execution result", file=sys.stderr)
         print("  wait              Wait for command completion", file=sys.stderr)
-        print("  history           Show command history for a client", file=sys.stderr)
+        print("  history [-v]      Show command history for a client", file=sys.stderr)
         print("  list-files        List files from command result", file=sys.stderr)
         print(
             "  download          Download a file from command result", file=sys.stderr

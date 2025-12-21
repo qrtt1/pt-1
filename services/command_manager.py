@@ -132,3 +132,22 @@ class CommandManager:
             command_info.scheduled_at = time.time()
             
         return True
+
+    def log_client_event(self, stable_id: Optional[str], event: str, status_code: int, detail: str = "") -> str:
+        """Log a client API call as history event."""
+        event_id = str(uuid.uuid4())
+        created_at = time.time()
+        status = f"client_call_{status_code}"
+
+        command_info = CommandInfo(
+            command_id=event_id,
+            stable_id=stable_id or "unknown",
+            command=event,
+            created_at=created_at,
+            finished_at=created_at,
+            status=status,
+            result=detail or "",
+        )
+
+        self.command_history[event_id] = command_info
+        return event_id
