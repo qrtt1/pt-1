@@ -6,12 +6,41 @@ List Clients Command
 
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+import time
 from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class ListClientsCommand(Command):
     """列出所有已註冊的客戶端"""
+
+    @staticmethod
+    def format_last_seen(timestamp):
+        """將時間戳格式化為 '時:分:秒 (X min/sec ago)' 的混合格式"""
+        if not timestamp:
+            return "never"
+
+        try:
+            # 轉換時間戳為 datetime
+            dt = datetime.fromtimestamp(timestamp)
+            now = datetime.now()
+
+            # 計算相對時間
+            elapsed = (now - dt).total_seconds()
+
+            if elapsed < 60:
+                relative = f"{int(elapsed)}s ago"
+            elif elapsed < 3600:
+                relative = f"{int(elapsed / 60)}m ago"
+            else:
+                relative = f"{int(elapsed / 3600)}h ago"
+
+            # 格式化絕對時間
+            absolute = dt.strftime("%H:%M:%S")
+
+            return f"{absolute} ({relative})"
+        except (ValueError, OSError):
+            return str(timestamp)
 
     def execute(self) -> int:
         """執行列出客戶端命令"""
@@ -36,9 +65,9 @@ class ListClientsCommand(Command):
             print(f"Total clients: {len(clients)}")
             print("")
             print(
-                f"{'CLIENT ID':<20} {'STATUS':<15} {'HOSTNAME':<20} {'USERNAME':<15} {'LAST SEEN':<20}"
+                f"{'CLIENT ID':<20} {'STATUS':<15} {'HOSTNAME':<20} {'USERNAME':<15} {'LAST SEEN':<30}"
             )
-            print("-" * 100)
+            print("-" * 110)
 
             for c in clients:
                 client_id = c.get("stable_id", "unknown")
@@ -48,15 +77,8 @@ class ListClientsCommand(Command):
                 username = c.get("username", "unknown")
                 last_seen = c.get("last_seen", "")
 
-                # 格式化時間
-                if last_seen:
-                    try:
-                        dt = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
-                        last_seen_str = dt.strftime("%Y-%m-%d %H:%M:%S")
-                    except:
-                        last_seen_str = last_seen
-                else:
-                    last_seen_str = "never"
+                # 格式化時間戳（混合格式）
+                last_seen_str = self.format_last_seen(last_seen)
 
                 # 狀態標示
                 if terminated:
@@ -65,7 +87,7 @@ class ListClientsCommand(Command):
                     status_display = f"[{status.upper()}]"
 
                 print(
-                    f"{client_id:<20} {status_display:<15} {hostname:<20} {username:<15} {last_seen_str:<20}"
+                    f"{client_id:<20} {status_display:<15} {hostname:<20} {username:<15} {last_seen_str}"
                 )
 
             return 0
