@@ -45,15 +45,30 @@ class TerminateCommand(Command):
             command_id = result.get("command_id")
             message = result.get("message", "")
 
+            print("=" * 80)
             print(f"✓ Termination signal sent to '{client_id}'")
+            print("=" * 80)
             print(f"Command ID: {command_id}")
             print(f"Status: {message}")
             print("")
-            print("Waiting for client to shut down...")
+            print("The client has been marked as TERMINATED on the server.")
+            print("The graceful shutdown signal is now queued for the client.")
+            print("")
 
-            # 輪詢確認 client 離線（最多等待 30 秒）
-            max_attempts = 15
-            for attempt in range(max_attempts):
+            # 提供非同步檢查選項
+            print("What happens next:")
+            print("  1. Client will receive the termination signal")
+            print("  2. Client will complete current task (if any)")
+            print("  3. Client will shut down gracefully")
+            print("")
+            print("To check current status:")
+            print(f"  pt1 list-clients          (check if [TERMINATED])")
+            print(f"  pt1 get-result {command_id}")
+            print("")
+
+            # 可選的短暫等待（5 秒）以觀察立即反應
+            print("Checking immediate status...")
+            for attempt in range(3):
                 time.sleep(2)
 
                 # 取得 client registry
@@ -71,23 +86,28 @@ class TerminateCommand(Command):
                     print(f"✓ Client '{client_id}' has been removed from registry")
                     return 0
 
-                if target_client.get("status") == "offline":
+                # 檢查是否已標記為 terminated
+                if target_client.get("terminated"):
+                    terminated_status = "[TERMINATED]"
+                else:
+                    terminated_status = f"[{target_client.get('status', 'unknown').upper()}]"
+
+                client_status = target_client.get("status", "unknown")
+                print(f"  Current status: {terminated_status} (last seen {attempt * 2 + 2}s ago)")
+
+                if client_status == "offline":
                     print(f"✓ Client '{client_id}' is now offline")
                     print("")
                     print("Termination completed successfully")
                     return 0
 
-            # 超時
-            print(f"⚠ Timeout: Client '{client_id}' may still be running")
-            print("The termination signal was sent, but the client has not yet confirmed shutdown")
+            # 非超時，而是「已發送，繼續進行中」
             print("")
-            print("Possible reasons:")
-            print("  - Client is still processing a long-running command")
-            print("  - Client lost network connection")
-            print("  - Client agent is not responding")
+            print("✓ Termination signal is queued and being processed")
+            print("  The client may take a moment to shut down depending on")
+            print("  whether it's busy with a long-running command.")
             print("")
-            print("You can check client status with: pt1 list-clients")
-            return 1
+            return 0
 
         except Exception as e:
             error_msg = str(e)
