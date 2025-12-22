@@ -29,7 +29,12 @@ async def startup_event():
     expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
     print(f"  Active API token: {active_token}")
     print(f"  Token expires (UTC): {expiry_str}")
-    print(f"  Rotation interval (default): {_default_rotation_seconds()} seconds")
+    rotation_seconds = _default_rotation_seconds()
+    if rotation_seconds % 86400 == 0:
+        rotation_hint = f"{rotation_seconds} seconds ({rotation_seconds // 86400} days)"
+    else:
+        rotation_hint = f"{rotation_seconds} seconds"
+    print(f"  Rotation interval (default): {rotation_hint}")
     
     if public_url:
         print(f"  Public URL  : {public_url}")

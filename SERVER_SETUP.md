@@ -52,6 +52,7 @@ cp tokens.json.example tokens.json
 - 使用強度足夠的隨機字串作為 token
 - 不要將 `tokens.json` commit 到版本控制
 - 不同用途使用不同 token，方便追蹤與管理
+- 預設 token rotation 為 7 天，可用 `PT1_TOKEN_ROTATION_SECONDS` 覆寫（秒）
 
 ### 3. 啟動 Server
 

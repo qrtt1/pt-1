@@ -16,7 +16,7 @@ _active_description: str = "Auto-rotated token (persistent)"
 
 # Default rotation interval (seconds) if not specified on token
 def _default_rotation_seconds() -> int:
-    default_seconds = 86400  # 24 hours
+    default_seconds = 604800  # 7 days
     value = os.getenv("PT1_TOKEN_ROTATION_SECONDS")
     if not value:
         return default_seconds
