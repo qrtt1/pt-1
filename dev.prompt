@@ -1,18 +1,18 @@
-# FastAPI 專案開發規則
+# 開發備忘
 
 ## 伺服器設定
 - 預設 port：5566
 - 啟動指令：`uvicorn main:app --host 0.0.0.0 --port 5566`
-- 環境變數：`PUBLIC_URL` - 設定公開存取的 URL（如 ngrok URL）
+- 環境變數：`PUBLIC_URL` - 設定公開存取的 URL（選用）
 
 ### 啟動方式
 ```bash
 # 方式 1：先設定環境變數
-export PUBLIC_URL=https://your-ngrok-url.ngrok-free.app
+export PUBLIC_URL=https://your-server.example.com
 uvicorn main:app --host 0.0.0.0 --port 5566
 
 # 方式 2：同時設定環境變數和啟動
-PUBLIC_URL=https://your-ngrok-url.ngrok-free.app uvicorn main:app --host 0.0.0.0 --port 5566
+PUBLIC_URL=https://your-server.example.com uvicorn main:app --host 0.0.0.0 --port 5566
 ```
 
 如果沒有設定 PUBLIC_URL，伺服器會提示使用者先設定再重啟。
@@ -20,7 +20,6 @@ PUBLIC_URL=https://your-ngrok-url.ngrok-free.app uvicorn main:app --host 0.0.0.0
 ## 客戶端安裝指令
 伺服器啟動後會自動顯示安裝指令，統一使用 Public URL：
 
-### 指令格式
 ```powershell
 # 標準模式（持續執行）
 iwr {PUBLIC_URL}/client_install.ps1 -UseBasicParsing | iex
@@ -28,56 +27,16 @@ iwr {PUBLIC_URL}/client_install.ps1 -UseBasicParsing | iex
 # 單次執行模式（開發用）
 iwr '{PUBLIC_URL}/client_install.ps1?single_run=true' -UseBasicParsing | iex
 
-# 開發版自動更新器
-iwr {PUBLIC_URL}/dev_client_install.ps1 -UseBasicParsing | iex
+# 生產環境 agent（自動重啟）
+iwr {PUBLIC_URL}/win_agent.ps1 -UseBasicParsing | iex
 ```
 
-**重要**：`-UseBasicParsing` 參數是必要的，避免 IE 相容性問題和確保腳本正確下載。
+`-UseBasicParsing` 參數用於避免 IE 相容性問題並確保腳本正確下載。
 
-### 模式說明
-- **標準模式**：持續執行，等待伺服器指令
-- **單次執行模式**：等待最多 10 秒執行一個指令後退出，適合開發和測試
-- **開發版自動更新器**：會自動重新下載並執行最新的客戶端腳本
-
-### Public URL 管理
-- 伺服器啟動時會自動顯示完整的安裝指令（包含實際的 Public URL）
-- Public URL 透過 `PUBLIC_URL` 環境變數設定，不需要修改程式碼
-- 如果沒有設定 PUBLIC_URL 環境變數，伺服器會顯示設定提示
-- **注意**：每次 ngrok 重啟都會產生新的 URL，只需要重新設定環境變數並重啟伺服器
-
-## 開發工作流程 (Development Cycle)
-
-### 標準開發循環
-1. **準備環境**
-   - 獲得 Public URL (ngrok)
-   - 啟動 5566 server：`PUBLIC_URL=https://xxx.ngrok-free.app uvicorn main:app --host 0.0.0.0 --port 5566`
-
-2. **啟動開發客戶端**
-   - 確保 dev client 已啟動：`iwr https://xxx.ngrok-free.app/dev_client_install.ps1 -UseBasicParsing | iex`
-   - 驗證客戶端定時發送 dev log
-
-3. **開發與實作**
-   - 修改 `client_install.ps1` 範本（如果需要客戶端變更）
-   - 修改 server 實作（新增或修改 endpoints、邏輯等）
-
-4. **測試執行**
-   - 等待 single run 自動執行
-   - 自動 log upload 到 `/dev_log`
-
-5. **檢查與除錯**
-   - 查看 logs：`GET /dev_log` (消費模式) 或 `/dev_log/peek` (只查看)
-   - 根據 log 內容進行修改和除錯
-
-6. **需求評估**
-   - 檢查是否有新需求或需要進一步修改
-
-7. **重複循環**
-   - 回到步驟 3，持續開發直到功能完成
-
-### 開發工具 Endpoints
-- `POST /dev_log` - 客戶端自動上傳 transcript
-- `GET /dev_log` - 讀取並消費 log 佇列
-- `GET /dev_log/peek` - 查看 log 但不消費（用於監控）
+## 測試建議
+- `pt1 auth` 驗證 token 與連線
+- `pt1 list-clients` 確認 client 連線狀態
+- `pt1 send` / `pt1 get-result` 驗證指令傳遞
 
 ## 專案結構規範
 

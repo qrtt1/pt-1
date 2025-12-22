@@ -56,5 +56,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pt1 help` - Show detailed help
 - `pt1 prompt` - Show AI agent quick reference
 
-[0.2.0]: https://github.com/qty-playground/pt-1/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/qty-playground/pt-1/releases/tag/v0.1.0
+[0.2.0]: https://github.com/qrtt1/pt-1/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/qrtt1/pt-1/releases/tag/v0.1.0
