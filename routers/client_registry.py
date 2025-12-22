@@ -49,6 +49,10 @@ def update_client_status(client_id: str, hostname: str, username: str):
         client.username = username
         client.last_seen = now
         client.status = 'online'
+        # 如果客戶端重新上線，清除 terminated 標記
+        if client.terminated:
+            client.terminated = False
+            print(f"[Client Registry] Cleared terminated flag for '{stable_id}' (client reconnected)")
     else:
         # 新客戶端註冊
         client_registry[stable_id] = ClientInfo(
