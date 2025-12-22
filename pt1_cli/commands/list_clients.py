@@ -36,12 +36,14 @@ class ListClientsCommand(Command):
             print(f"Total clients: {len(clients)}")
             print("")
             print(
-                f"{'CLIENT ID':<20} {'HOSTNAME':<20} {'USERNAME':<15} {'LAST SEEN':<20}"
+                f"{'CLIENT ID':<20} {'STATUS':<15} {'HOSTNAME':<20} {'USERNAME':<15} {'LAST SEEN':<20}"
             )
-            print("-" * 80)
+            print("-" * 100)
 
             for c in clients:
                 client_id = c.get("stable_id", "unknown")
+                status = c.get("status", "unknown")
+                terminated = c.get("terminated", False)
                 hostname = c.get("hostname", "unknown")
                 username = c.get("username", "unknown")
                 last_seen = c.get("last_seen", "")
@@ -56,8 +58,14 @@ class ListClientsCommand(Command):
                 else:
                     last_seen_str = "never"
 
+                # 狀態標示
+                if terminated:
+                    status_display = "[TERMINATED]"
+                else:
+                    status_display = f"[{status.upper()}]"
+
                 print(
-                    f"{client_id:<20} {hostname:<20} {username:<15} {last_seen_str:<20}"
+                    f"{client_id:<20} {status_display:<15} {hostname:<20} {username:<15} {last_seen_str:<20}"
                 )
 
             return 0

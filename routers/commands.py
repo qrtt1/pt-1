@@ -288,11 +288,14 @@ async def upload_transcript(
 @router.post("/terminate_client/{client_id}")
 def terminate_client(client_id: str, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     """Send graceful termination signal to client"""
-    from routers.client_registry import client_registry
+    from routers.client_registry import client_registry, mark_client_terminated
 
     # Check if client exists
     if client_id not in client_registry:
         raise HTTPException(status_code=404, detail=f"Client '{client_id}' not found")
+
+    # Mark client as terminated
+    mark_client_terminated(client_id)
 
     # Send special graceful exit command
     special_command = "@PT1:GRACEFUL_EXIT@"

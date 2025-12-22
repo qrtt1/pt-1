@@ -16,6 +16,7 @@ class ClientInfo(BaseModel):
     first_seen: float
     last_seen: float
     status: str  # 'online', 'offline'
+    terminated: bool = False  # 是否已被明確終止
 
 # 客戶端註冊表
 client_registry: Dict[str, ClientInfo] = {}
@@ -67,6 +68,15 @@ def check_offline_clients():
     for stable_id, client in client_registry.items():
         if client.status == 'online' and (now - client.last_seen) > OFFLINE_TIMEOUT:
             client.status = 'offline'
+
+def mark_client_terminated(stable_id: str):
+    """標記客戶端為已終止"""
+    if stable_id in client_registry:
+        client = client_registry[stable_id]
+        client.terminated = True
+        client.status = 'offline'
+        return True
+    return False
 
 @router.get("/client_registry")
 def get_client_registry(token: str = Depends(verify_token)):
