@@ -162,12 +162,40 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
             # Get files before execution for comparison
             $beforeFiles = Find-OutputFiles -Command $response.command
 
+            # Start heartbeat background job during command execution
+            $heartbeatJob = $null
+            try {{
+                # Function to send periodic heartbeat
+                $heartbeatScript = {{
+                    param($serverUrl, $stableId, $apiToken, $hostname, $username)
+                    while ($true) {{
+                        try {{
+                            Invoke-RestMethod -Uri "$serverUrl/heartbeat/$stableId" -Method POST -Headers @{{"X-API-Token"=$apiToken}} -Body @{{hostname=$hostname; username=$username}} -TimeoutSec 2 | Out-Null
+                        }} catch {{
+                            # Silently ignore heartbeat failures
+                        }}
+                        Start-Sleep -Seconds 10
+                    }}
+                }}
+                $heartbeatJob = Start-Job -ScriptBlock $heartbeatScript -ArgumentList $serverUrl, $stableId, $apiToken, $hostname, $username
+            }} catch {{
+                # If heartbeat fails to start, continue anyway
+            }}
+
             try {{
                 $result = Invoke-Expression $response.command 2>&1 | Out-String
                 $status = "completed"
             }} catch {{
                 $result = $_.Exception.Message
                 $status = "failed"
+            }} finally {{
+                # Stop heartbeat job
+                if ($heartbeatJob) {{
+                    try {{
+                        Stop-Job -Job $heartbeatJob -Force -ErrorAction SilentlyContinue
+                        Remove-Job -Job $heartbeatJob -Force -ErrorAction SilentlyContinue
+                    }} catch {{}}
+                }}
             }}
 
             Write-Host "[$stableId] Result:" -ForegroundColor Magenta

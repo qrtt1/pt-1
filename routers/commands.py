@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 from fastapi.responses import FileResponse
 from routers.clients import command_queue
-from routers.client_registry import update_client_status
+from routers.client_registry import update_client_status, client_registry
 from services.command_manager import CommandManager, CommandInfo, ResultType, FileInfo
 from services.providers import get_command_manager
 from auth import verify_token
@@ -10,6 +10,7 @@ from typing import Dict, Optional, List
 import os
 import shutil
 from pathlib import Path
+import time
 
 router = APIRouter()
 
@@ -36,27 +37,46 @@ class CommandResult(BaseModel):
 def get_next_command(client_id: str, hostname: str = None, username: str = None, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
     # client_id 現在是 stable_id
     stable_id = client_id
-    
+
     # 更新客戶端狀態（如果提供了環境資訊）
     if hostname and username:
         stable_id = update_client_status(client_id, hostname, username)
-    
+
     if stable_id not in command_queue:
         # 自動註冊新的 stable_id
         command_queue[stable_id] = None
         print(f"Auto-registered stable ID: {stable_id}")
-    
+
     # 使用 CommandManager 取得下一個 pending 命令
     next_command = cmd_manager.get_next_command(stable_id)
     if next_command:
         command, command_id = next_command
-        
+
         # Update status to executing
         cmd_manager.update_command_status(command_id, 'executing')
         print(f"Sending command to {stable_id}: {command} (ID: {command_id})")
         return {"command": command, "command_id": command_id}
-    
+
     return {"command": None}
+
+@router.post("/heartbeat/{client_id}")
+def client_heartbeat(client_id: str, hostname: str = None, username: str = None, token: str = Depends(verify_token)):
+    """Client heartbeat to keep connection alive during long-running commands"""
+    stable_id = client_id
+
+    # 更新客戶端狀態和 last_seen
+    if hostname and username:
+        stable_id = update_client_status(client_id, hostname, username)
+    else:
+        # 至少更新 last_seen
+        if stable_id in client_registry:
+            client_registry[stable_id].last_seen = time.time()
+
+    return {
+        "status": "heartbeat_received",
+        "client_id": stable_id,
+        "timestamp": time.time()
+    }
 
 @router.post("/send_command")
 def send_command(request: CommandRequest, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
