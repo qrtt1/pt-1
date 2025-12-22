@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-12-22
+
+### Added
+- Client heartbeat mechanism to keep long-running commands alive
+  - New `/heartbeat/{client_id}` endpoint
+  - Heartbeat job in client install script
+- Command timeout inspection for executing commands
+
+### Changed
+- Default API token rotation interval to 7 days
+- Client registry UX improvements for status and timestamps
+- Terminate command UX improvements for async shutdown feedback
+
 ## [0.2.0] - 2025-12-19
 
 ### Added
@@ -56,5 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pt1 help` - Show detailed help
 - `pt1 prompt` - Show AI agent quick reference
 
+[0.3.0]: https://github.com/qrtt1/pt-1/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/qrtt1/pt-1/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/qrtt1/pt-1/releases/tag/v0.1.0
