@@ -133,6 +133,31 @@ class CommandManager:
             
         return True
 
+    def check_timed_out_commands(self, timeout_seconds: int = 120) -> list:
+        """檢查已超時的命令（2 分鐘內未完成的 executing 狀態命令）
+
+        參數：
+            timeout_seconds: 命令超時秒數（預設 120 秒）
+
+        返回：
+            超時命令的列表
+        """
+        now = time.time()
+        timed_out = []
+
+        for command_id, command_info in self.command_history.items():
+            if command_info.status == 'executing' and command_info.scheduled_at:
+                elapsed = now - command_info.scheduled_at
+                if elapsed > timeout_seconds:
+                    timed_out.append({
+                        'command_id': command_id,
+                        'stable_id': command_info.stable_id,
+                        'command': command_info.command,
+                        'elapsed': elapsed
+                    })
+
+        return timed_out
+
     def log_client_event(self, stable_id: Optional[str], event: str, status_code: int, detail: str = "") -> str:
         """Log a client API call as history event."""
         event_id = str(uuid.uuid4())

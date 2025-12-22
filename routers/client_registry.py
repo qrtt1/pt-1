@@ -20,7 +20,8 @@ class ClientInfo(BaseModel):
 
 # 客戶端註冊表
 client_registry: Dict[str, ClientInfo] = {}
-OFFLINE_TIMEOUT = 30  # 30 秒無回應視為離線
+OFFLINE_TIMEOUT = 300  # 5 分鐘無回應視為離線（允許長時間命令執行 + 心跳）
+COMMAND_TIMEOUT = 120  # 2 分鐘無新命令回應視為命令超時
 
 def generate_stable_id(hostname: str, username: str) -> str:
     """基於 hostname 和 username 產生穩定的客戶端 ID
@@ -63,7 +64,15 @@ def update_client_status(client_id: str, hostname: str, username: str):
     return stable_id
 
 def check_offline_clients():
-    """檢查並更新離線客戶端狀態"""
+    """檢查並更新離線客戶端狀態
+
+    客戶端視為離線的條件：
+    - 已明確被終止（terminated=True）
+    - 5 分鐘內沒有任何活動（包含心跳）
+
+    注意：有心跳機制，長時間執行的命令會定期發送心跳，
+    所以即使命令執行 5 分鐘，客戶端仍會保持在線狀態。
+    """
     now = time.time()
     for stable_id, client in client_registry.items():
         if client.status == 'online' and (now - client.last_seen) > OFFLINE_TIMEOUT:
