@@ -106,6 +106,8 @@ def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awai
                         # latin-1 可處理所有單 byte (0x00-0xFF)，不會失敗
                         body_str = body.decode('latin-1')
                     data = json.loads(body_str)
+                    # 重新編碼為 UTF-8，確保下游 handler 可以正常解析
+                    body = body_str.encode('utf-8')
                 except json.JSONDecodeError:
                     data = {}
 
