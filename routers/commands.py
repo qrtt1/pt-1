@@ -1,4 +1,6 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
+import json
+
+from fastapi import APIRouter, File, UploadFile, HTTPException, Depends, Request
 from fastapi.responses import FileResponse
 from routers.clients import command_queue
 from routers.client_registry import update_client_status, client_registry
@@ -103,26 +105,49 @@ def send_command(request: CommandRequest, cmd_manager: CommandManager = Depends(
         raise  # 重新拋出 409 錯誤
 
 @router.post("/submit_result")
-def submit_result(result_data: CommandResult, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
-    """Submit command execution result"""
-    command_id = result_data.command_id
-    
-    if not cmd_manager.get_command(command_id):
-        return {"error": f"Command ID {command_id} not found"}
-    
-    # 使用 CommandManager 完成 command
-    success = cmd_manager.complete_command(
-        command_id, 
-        result_data.result, 
-        result_data.status, 
-        result_data.result_type
-    )
-    
-    if not success:
-        return {"error": f"Failed to complete command {command_id}"}
-    
-    print(f"Result received for {command_id}: {result_data.status} ({result_data.result_type})")
-    return {"status": "Result submitted successfully", "command_id": command_id}
+async def submit_result(request: Request, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):
+    """Submit command execution result - always returns 200"""
+    try:
+        body = await request.body()
+        # 處理非 UTF-8 編碼
+        try:
+            body_str = body.decode('utf-8')
+        except UnicodeDecodeError:
+            body_str = body.decode('latin-1')
+
+        data = json.loads(body_str)
+        command_id = data.get("command_id", "")
+        result = data.get("result", "")
+        status = data.get("status", "completed")
+        result_type_str = data.get("result_type", "text")
+
+        # 轉換 result_type
+        try:
+            result_type = ResultType(result_type_str)
+        except ValueError:
+            result_type = ResultType.TEXT
+
+        if not command_id:
+            print(f"[submit_result] Missing command_id in request")
+            return {"status": "accepted", "warning": "missing command_id"}
+
+        if not cmd_manager.get_command(command_id):
+            print(f"[submit_result] Command ID {command_id} not found")
+            return {"status": "accepted", "warning": f"command_id {command_id} not found"}
+
+        # 使用 CommandManager 完成 command
+        success = cmd_manager.complete_command(command_id, result, status, result_type)
+
+        if not success:
+            print(f"[submit_result] Failed to complete command {command_id}")
+            return {"status": "accepted", "warning": f"failed to complete {command_id}"}
+
+        print(f"Result received for {command_id}: {status} ({result_type})")
+        return {"status": "Result submitted successfully", "command_id": command_id}
+
+    except Exception as e:
+        print(f"[submit_result] Exception: {type(e).__name__}: {e}")
+        return {"status": "accepted", "error": str(e)}
 
 @router.get("/get_result/{command_id}")
 def get_result(command_id: str, cmd_manager: CommandManager = Depends(get_command_manager), token: str = Depends(verify_token)):

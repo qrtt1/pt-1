@@ -101,14 +101,18 @@ def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awai
                 # 先解碼 bytes 為 str，處理非 UTF-8 編碼（如 Windows-1252）
                 try:
                     body_str = body.decode('utf-8')
-                except UnicodeDecodeError:
+                except UnicodeDecodeError as e:
                     # latin-1 可處理所有單 byte (0x00-0xFF)，不會失敗
                     body_str = body.decode('latin-1')
+                    print(f"[DEBUG] UnicodeDecodeError on {path}: {e}")
+                    print(f"[DEBUG] Raw body (first 500 bytes): {body[:500]!r}")
                 # 無論 JSON 是否有效，都確保 body 是 UTF-8 編碼
                 body = body_str.encode('utf-8')
                 try:
                     data = json.loads(body_str)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
+                    print(f"[DEBUG] JSONDecodeError on {path}: {e}")
+                    print(f"[DEBUG] body_str (first 500 chars): {body_str[:500]!r}")
                     data = {}
 
             json_stable_id = data.get("client_id") or data.get("stable_id")
