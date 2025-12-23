@@ -99,7 +99,13 @@ def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awai
             body = await request.body()
             if body:
                 try:
-                    data = json.loads(body)
+                    # 先解碼 bytes 為 str，處理非 UTF-8 編碼（如 Windows-1252）
+                    try:
+                        body_str = body.decode('utf-8')
+                    except UnicodeDecodeError:
+                        # latin-1 可處理所有單 byte (0x00-0xFF)，不會失敗
+                        body_str = body.decode('latin-1')
+                    data = json.loads(body_str)
                 except json.JSONDecodeError:
                     data = {}
 
