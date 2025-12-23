@@ -125,7 +125,7 @@ $commandExecuted = $false
 
 while ($elapsed -lt $timeout -and -not $commandExecuted) {{
     try {{
-        $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$stableId&hostname=$hostname&username=$username" -Method GET -Headers @{{"X-API-Token"=$apiToken}} -TimeoutSec 5
+        $response = Invoke-RestMethod -Uri "$serverUrl/next_command?client_id=$stableId&hostname=$hostname&username=$username" -Method GET -Headers @{{"X-API-Token"=$apiToken}} -TimeoutSec 5 -UseBasicParsing
 
         if ($response.command) {{
             $commandId = $response.command_id
@@ -170,7 +170,7 @@ while ($elapsed -lt $timeout -and -not $commandExecuted) {{
                     param($serverUrl, $stableId, $apiToken, $hostname, $username)
                     while ($true) {{
                         try {{
-                            Invoke-RestMethod -Uri "$serverUrl/heartbeat/$stableId" -Method POST -Headers @{{"X-API-Token"=$apiToken}} -Body @{{hostname=$hostname; username=$username}} -TimeoutSec 2 | Out-Null
+                            Invoke-RestMethod -Uri "$serverUrl/heartbeat/$stableId" -Method POST -Headers @{{"X-API-Token"=$apiToken}} -Body @{{hostname=$hostname; username=$username}} -TimeoutSec 2 -UseBasicParsing | Out-Null
                         }} catch {{
                             # Silently ignore heartbeat failures
                         }}

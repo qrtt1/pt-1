@@ -47,7 +47,7 @@ class QuickstartCommand(Command):
         print("Copy and run this command on your Windows machine:")
         print("-" * 80)
         print(
-            f'iwr "{script_url}" -Headers @{{"X-API-Token"="{config.api_token}"}} | iex'
+            f'iwr "{script_url}" -UseBasicParsing -Headers @{{"X-API-Token"="{config.api_token}"}} | iex'
         )
         print("-" * 80)
         print("")

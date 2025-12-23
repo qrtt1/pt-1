@@ -82,7 +82,7 @@ function Upload-SessionTranscript {{
             ""
         ) -join $LF
 
-        Invoke-RestMethod -Uri $uploadUri -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Headers @{{"X-API-Token"=$script:apiToken}} -Body $bodyLines | Out-Null
+        Invoke-RestMethod -Uri $uploadUri -Method Post -ContentType "multipart/form-data; boundary=$boundary" -Headers @{{"X-API-Token"=$script:apiToken}} -Body $bodyLines -UseBasicParsing | Out-Null
         return $true
     }} catch {{
         return $false
