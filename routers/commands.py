@@ -145,6 +145,13 @@ async def submit_result(request: Request, cmd_manager: CommandManager = Depends(
         print(f"Result received for {command_id}: {status} ({result_type})")
         return {"status": "Result submitted successfully", "command_id": command_id}
 
+    except json.JSONDecodeError as e:
+        print(f"[submit_result] JSONDecodeError: {e}")
+        return {
+            "status": "accepted",
+            "warning": "[PT-1 WARNING] Unable to parse result - possible encoding issue. Consider using base64 encoding for the result field.",
+            "parse_error": str(e)
+        }
     except Exception as e:
         print(f"[submit_result] Exception: {type(e).__name__}: {e}")
         return {"status": "accepted", "error": str(e)}
