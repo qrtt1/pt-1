@@ -98,16 +98,16 @@ def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awai
         if method in {"POST", "PUT", "PATCH"} and "application/json" in content_type:
             body = await request.body()
             if body:
+                # 先解碼 bytes 為 str，處理非 UTF-8 編碼（如 Windows-1252）
                 try:
-                    # 先解碼 bytes 為 str，處理非 UTF-8 編碼（如 Windows-1252）
-                    try:
-                        body_str = body.decode('utf-8')
-                    except UnicodeDecodeError:
-                        # latin-1 可處理所有單 byte (0x00-0xFF)，不會失敗
-                        body_str = body.decode('latin-1')
+                    body_str = body.decode('utf-8')
+                except UnicodeDecodeError:
+                    # latin-1 可處理所有單 byte (0x00-0xFF)，不會失敗
+                    body_str = body.decode('latin-1')
+                # 無論 JSON 是否有效，都確保 body 是 UTF-8 編碼
+                body = body_str.encode('utf-8')
+                try:
                     data = json.loads(body_str)
-                    # 重新編碼為 UTF-8，確保下游 handler 可以正常解析
-                    body = body_str.encode('utf-8')
                 except json.JSONDecodeError:
                     data = {}
 
