@@ -318,8 +318,134 @@ pt-1/
 └── uploads/                  # 檔案上傳目錄
 ```
 
+## Technical Details
+
+### SSH 設定
+
+使用 SSH Agent Forward 方式存取部署主機，不使用 deploy key。
+
+**本地 SSH config 設定** (`~/.ssh/config`):
+```
+Host pt1
+    HostName <your-server-hostname>
+    User yourname
+    ForwardAgent yes
+```
+
+**驗證 SSH 連線**:
+```bash
+# 測試無密碼登入
+ssh pt1 "whoami"
+
+# 測試 sudo 權限
+ssh pt1 "sudo systemctl status powershell-executor.service"
+
+# 測試 agent forwarding
+ssh pt1 "ssh-add -l"
+```
+
+### CLI 工具安裝與設定
+
+```bash
+# 在專案目錄安裝
+cd /path/to/pt-1
+pip install -e .
+
+# 驗證安裝
+which pt1
+pt1 --help
+```
+
+建立 `~/.pt-1/.env` 設定檔：
+```bash
+mkdir -p ~/.pt-1
+cat > ~/.pt-1/.env << 'EOF'
+PT1_SERVER_URL=https://your-server.example.com
+PT1_API_TOKEN=your-api-token-here
+EOF
+
+# 驗證設定
+pt1 auth
+```
+
+### 部署腳本
+
+完整的自動化部署腳本：
+
+```bash
+#!/bin/bash
+# deploy.sh - PT-1 部署腳本
+
+set -e  # 遇到錯誤立即停止
+
+echo "=== PT-1 部署流程 ==="
+
+# 1. 檢查本地狀態
+echo "1. 檢查本地 git 狀態..."
+if ! git diff-index --quiet HEAD --; then
+    echo "錯誤：有未提交的修改"
+    exit 1
+fi
+
+# 2. Push 到 origin
+echo "2. Push 到 origin..."
+git push origin main
+
+# 3. SSH 到 pt1 同步代碼
+echo "3. 同步代碼到 pt1..."
+ssh pt1 "cd workspace/pt-1 && git pull"
+
+# 4. 重啟服務
+echo "4. 重啟 service..."
+ssh pt1 "sudo systemctl restart powershell-executor.service"
+
+# 5. 確認服務狀態
+echo "5. 確認服務狀態..."
+if ssh pt1 "sudo systemctl is-active --quiet powershell-executor.service"; then
+    echo "✓ Service 運行正常"
+else
+    echo "✗ Service 啟動失敗"
+    ssh pt1 "sudo systemctl status powershell-executor.service"
+    exit 1
+fi
+
+echo ""
+echo "=== 部署完成 ==="
+echo "✓ 部署流程完成"
+```
+
+### 版本管理
+
+```bash
+# 查看當前部署版本
+ssh pt1 "cd workspace/pt-1 && git log -1 --oneline"
+
+# 切換到特定 commit（回滾）
+ssh pt1 "cd workspace/pt-1 && git fetch && git checkout <commit-hash>"
+ssh pt1 "sudo systemctl restart powershell-executor.service"
+
+# 回到最新版本
+ssh pt1 "cd workspace/pt-1 && git checkout main && git pull"
+ssh pt1 "sudo systemctl restart powershell-executor.service"
+```
+
+### 驗證部署
+
+```bash
+# 查看註冊的 clients
+pt1 list-clients
+
+# 發送測試命令
+pt1 send test-pc "Get-ComputerInfo | Select-Object CsName, OsArchitecture"
+
+# 查詢結果
+pt1 get-result <command_id>
+
+# 查看命令歷史
+pt1 history test-pc
+```
+
 ## 更多資源
 
 - **CLI 使用**: 請參考 [README.md](README.md)
-- **環境驗證**: 請參考 [VERIFICATION.md](VERIFICATION.md)
 - **API 文件**: 啟動 server 後訪問 `/ai_guide`
