@@ -33,9 +33,11 @@ $env:PT1_CLIENT_ID = $stableId
 
 # Create random working directory in temp
 $workDirName = "pt1_agent_" + [System.Guid]::NewGuid().ToString("N").Substring(0, 8)
-$workDir = Join-Path $env:TEMP $workDirName
+# Get full path to avoid 8.3 short path issues
+$tempPath = [System.IO.Path]::GetFullPath($env:TEMP)
+$workDir = Join-Path $tempPath $workDirName
 New-Item -ItemType Directory -Path $workDir -Force | Out-Null
-Set-Location $workDir
+Set-Location -LiteralPath $workDir
 
 Write-Host "===============================================================================" -ForegroundColor Green
 Write-Host "                      POWERSHELL AGENT STARTED                               " -ForegroundColor Green
