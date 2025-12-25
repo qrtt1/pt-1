@@ -5,7 +5,7 @@ Quickstart Command
 """
 
 import sys
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class QuickstartCommand(Command):
@@ -18,6 +18,14 @@ class QuickstartCommand(Command):
         # 檢查設定是否完整
         if not config.is_configured():
             config.show_config_help()
+            return 1
+
+        # 取得全新的 session token（確保有完整的有效期）
+        client = PT1Client(config)
+        try:
+            session_token = client.get_fresh_session_token()
+        except Exception as e:
+            print(f"Error: Failed to obtain session token: {e}", file=sys.stderr)
             return 1
 
         # 檢查是否提供 client_id 參數
@@ -34,6 +42,7 @@ class QuickstartCommand(Command):
             script_url += f"?client_id={client_id}"
 
         # 產生 PowerShell oneliner
+        print("")
         print("PowerShell Client Quickstart")
         print("=" * 80)
         print("")
@@ -47,7 +56,7 @@ class QuickstartCommand(Command):
         print("Copy and run this command on your Windows machine:")
         print("-" * 80)
         print(
-            f'iwr "{script_url}" -UseBasicParsing -Headers @{{"X-API-Token"="{config.api_token}"}} | iex'
+            f'iwr "{script_url}" -UseBasicParsing -Headers @{{"X-API-Token"="{session_token}"}} | iex'
         )
         print("-" * 80)
         print("")

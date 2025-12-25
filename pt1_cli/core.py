@@ -164,12 +164,16 @@ class PT1Client:
         self.config = config
         self.base_url = config.server_url.rstrip("/")
 
-    def _ensure_session_token(self):
-        """確保有有效的 session token，必要時進行 token exchange"""
+    def _ensure_session_token(self, force_refresh: bool = False):
+        """確保有有效的 session token，必要時進行 token exchange
+
+        Args:
+            force_refresh: 強制取得新的 session token，忽略 cache
+        """
         from datetime import datetime, timedelta
 
         # Check if we already have a valid session token (with 60 seconds buffer)
-        if self.config.session_token and self.config.session_expires_at:
+        if not force_refresh and self.config.session_token and self.config.session_expires_at:
             buffer_time = self.config.session_expires_at - timedelta(seconds=60)
             if datetime.utcnow() < buffer_time:
                 return
@@ -198,6 +202,15 @@ class PT1Client:
             if e.response.status_code == 401:
                 raise Exception("Refresh token (PT1_API_TOKEN) 無效或已過期，請檢查設定")
             raise Exception(f"Token exchange 失敗: {e}")
+
+    def get_fresh_session_token(self) -> str:
+        """取得全新的 session token（用於 quickstart 等需要完整有效期的場景）
+
+        Returns:
+            str: 新的 session token
+        """
+        self._ensure_session_token(force_refresh=True)
+        return self.config.session_token
 
     def verify_auth(self) -> dict:
         """
