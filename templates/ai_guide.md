@@ -16,23 +16,54 @@ This is a remote PowerShell execution service designed for AI assistants to exec
 
 ## Authentication
 
-除了以下公開端點外，所有 API 呼叫都需要提供有效的 API token：
+### Token Architecture
+
+PT-1 使用雙層 token 機制：
+
+1. **Refresh Token (PT1_API_TOKEN)** - 長效期，用於換取 session token
+2. **Session Token** - 短效期（1 小時），用於 API 呼叫
+
+### Public Endpoints (No Authentication Required)
 - `GET /` - 服務概述
 - `GET /ai_guide` - 本指南
 
-### Token 使用方式
+### Token Exchange Endpoint (Requires Refresh Token)
+- `POST /auth/token/exchange` - 換取 session token
+
+### API Endpoints (Require Session Token)
+所有其他 API 端點都需要有效的 session token。
+
+### Authentication Flow
+
+**Step 1: Exchange for Session Token**
+```http
+POST {base_url}/auth/token/exchange
+X-API-Token: your-refresh-token-here
+
+Response:
+{{
+  "session_token": "uuid-here",
+  "expires_at": "2025-12-25T12:00:00Z",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}}
+```
+
+**Step 2: Use Session Token for API Calls**
 
 支援兩種驗證方式：
 
 **方式 1：X-API-Token header（推薦）**
 ```http
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 **方式 2：Authorization Bearer header**
 ```http
-Authorization: Bearer your-secret-token-here
+Authorization: Bearer your-session-token-here
 ```
+
+**Important**: Session tokens expire after 1 hour. When you receive a 401 error, exchange for a new session token.
 
 ## API Endpoints
 
@@ -40,7 +71,7 @@ Authorization: Bearer your-secret-token-here
 ```http
 POST {base_url}/send_command
 Content-Type: application/json
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 
 {{
   "client_id": "target_machine_name",
@@ -60,7 +91,7 @@ X-API-Token: your-secret-token-here
 ### 2. Get Command Result
 ```http
 GET {base_url}/get_result/{{command_id}}
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 **Response**:
@@ -82,13 +113,13 @@ X-API-Token: your-secret-token-here
 ### 3. Command History
 ```http
 GET {base_url}/command_history?stable_id={{client_id}}&limit=10
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 ### 4. List Available Clients
 ```http
 GET {base_url}/client_registry
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 **Response**:
@@ -115,19 +146,19 @@ X-API-Token: your-secret-token-here
 **List Agent Transcripts**:
 ```http
 GET {base_url}/agent_transcripts?client_id={{client_id}}&limit=50
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 **Get Agent Transcript Content**:
 ```http
 GET {base_url}/agent_transcript/{{transcript_id}}?format=content
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 **Get Agent Transcript Metadata**:
 ```http
 GET {base_url}/agent_transcript/{{transcript_id}}?format=metadata
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 **Response Example**:
@@ -151,7 +182,7 @@ X-API-Token: your-secret-token-here
 ### 6. Download Result Files
 ```http
 GET {base_url}/download_file/{{command_id}}/{{filename}}
-X-API-Token: your-secret-token-here
+X-API-Token: your-session-token-here
 ```
 
 ## Command Status Flow
@@ -168,7 +199,7 @@ X-API-Token: your-secret-token-here
 1. **Always check command status** before assuming completion:
    ```bash
    # Poll result endpoint until status is 'completed' or 'failed'
-   curl -H "X-API-Token: your-secret-token-here" "{base_url}/get_result/{{command_id}}"
+   curl -H "X-API-Token: your-session-token-here" "{base_url}/get_result/{{command_id}}"
    ```
 
 2. **Use descriptive client_id** based on the target machine:
@@ -194,11 +225,11 @@ X-API-Token: your-secret-token-here
 5. **Monitor agent transcripts for debugging**:
    ```bash
    # List recent transcripts for a client
-   curl -H "X-API-Token: your-secret-token-here" \
+   curl -H "X-API-Token: your-session-token-here" \
      "{base_url}/agent_transcripts?client_id=client-id-123&limit=5"
 
    # Get full transcript content for debugging
-   curl -H "X-API-Token: your-secret-token-here" \
+   curl -H "X-API-Token: your-session-token-here" \
      "{base_url}/agent_transcript/{{transcript_id}}?format=content"
 
    # When to check transcripts:

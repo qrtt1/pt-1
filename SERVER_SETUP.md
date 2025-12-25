@@ -29,7 +29,7 @@ pip install -e .
 cp tokens.json.example tokens.json
 ```
 
-編輯 `tokens.json`，設定你的 API token：
+編輯 `tokens.json`，設定你的 refresh token：
 
 ```json
 {
@@ -37,22 +37,35 @@ cp tokens.json.example tokens.json
     {
       "name": "admin",
       "token": "your-secret-token-here",
-      "description": "管理員用 token"
-    },
-    {
-      "name": "ai-agent",
-      "token": "another-token-for-ai",
-      "description": "AI agent 專用 token"
+      "description": "管理員用 refresh token",
+      "rotation_seconds": 604800
     }
   ]
 }
 ```
 
+**Token 機制說明**：
+
+PT-1 使用雙層 token 架構提升安全性：
+
+1. **Refresh Token (PT1_API_TOKEN)**
+   - 長效期 token，儲存在 `tokens.json` 中
+   - 用於換取 session token
+   - 預設 rotation 為 7 天 (604800 秒)
+   - CLI 使用者在 `~/.pt-1/.env` 中設定此 token
+
+2. **Session Token**
+   - 短效期 token，有效期 1 小時（可用 `PT1_SESSION_TOKEN_DURATION_SECONDS` 環境變數調整）
+   - 透過 `POST /auth/token/exchange` 從 refresh token 換取
+   - 用於所有 API 呼叫
+   - Server 端儲存在記憶體中（server 重啟後所有 session tokens 失效）
+   - CLI 會自動快取在 `~/.pt-1/.session_cache`
+
 **安全提醒**:
-- 使用強度足夠的隨機字串作為 token
+- 使用強度足夠的隨機字串作為 refresh token（建議使用 UUID）
 - 不要將 `tokens.json` commit 到版本控制
-- 不同用途使用不同 token，方便追蹤與管理
-- 預設 token rotation 為 7 天，可用 `PT1_TOKEN_ROTATION_SECONDS` 覆寫（秒）
+- Session token 過期後自動失效，需重新換取
+- Server 重啟會清空所有 session tokens（client 需重新連線）
 
 ### 3. 啟動 Server
 
@@ -148,27 +161,53 @@ uvicorn main:app --host 0.0.0.0 --port 5566
 # 重新連接：screen -r pt1
 ```
 
-## API Token 驗證
+## API 認證方式
 
-除了以下公開端點外，所有 API 都需要提供有效的 API token：
+### 公開端點（無需認證）
 - `GET /` - 服務概述
 - `GET /ai_guide` - AI 助理使用指南
 
-### Token 使用方式
+### Token Exchange（使用 Refresh Token）
+- `POST /auth/token/exchange` - 用 refresh token 換取 session token
+
+### 一般 API（使用 Session Token）
+所有其他 API 端點都需要有效的 session token。
+
+### 使用流程
+
+1. **取得 Session Token**
+```bash
+# 使用 refresh token 換取 session token
+curl -X POST -H "X-API-Token: your-refresh-token-here" \
+     http://localhost:5566/auth/token/exchange
+
+# 回應
+{
+  "session_token": "uuid-here",
+  "expires_at": "2025-12-25T12:00:00Z",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+2. **使用 Session Token 呼叫 API**
 
 支援兩種驗證方式：
 
 **方式 1：X-API-Token header（推薦）**
 ```bash
-curl -H "X-API-Token: your-secret-token-here" \
+curl -H "X-API-Token: your-session-token-here" \
      http://localhost:5566/command_history
 ```
 
 **方式 2：Authorization Bearer header**
 ```bash
-curl -H "Authorization: Bearer your-secret-token-here" \
+curl -H "Authorization: Bearer your-session-token-here" \
      http://localhost:5566/command_history
 ```
+
+### CLI 自動處理
+CLI 工具（`pt1`）會自動處理 token exchange 與 session token 快取，使用者無需手動管理。
 
 ## 主要 API 端點
 

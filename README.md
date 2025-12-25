@@ -100,6 +100,8 @@ PT1_SERVER_URL=https://your-server.example.com
 PT1_API_TOKEN=your-api-token-here
 ```
 
+> **說明**: `PT1_API_TOKEN` 是 refresh token，CLI 會自動用它換取短效期的 session token（有效期 1 小時）。Session token 會快取在 `~/.pt-1/.session_cache`，避免重複換取。
+
 驗證連線：
 
 ```bash
@@ -197,7 +199,6 @@ pt-1/
 - **CLI 使用**: 執行 `pt1 help` 查看完整命令說明
 - **AI Agent 指南**: 執行 `pt1 prompt` 取得 AI 專用快速參考
 - **Server 部署**: 請參考 [SERVER_SETUP.md](SERVER_SETUP.md)
-- **環境驗證**: 請參考 [VERIFICATION.md](VERIFICATION.md)
 - **API 文件**: 啟動 server 後訪問 `/ai_guide` 端點
 
 ## 系統需求
