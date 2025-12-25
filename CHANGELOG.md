@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-12-25
+
+### Fixed
+- **Security: Path traversal vulnerability**
+  - Added path validation in `download_file()` endpoint
+  - Prevents directory traversal attacks using `../` in filename parameter
+  - Validates resolved file paths stay within command folder bounds
+
+- **Critical: JSON decode error handling**
+  - Added error handling in `_load_tokens_file()` for corrupted JSON
+  - Prevents server crash if `tokens.json` is malformed
+  - Returns empty tokens list and logs error instead of crashing
+
+### Changed
+- **Code quality improvements from comprehensive code review**
+  - Centralized all datetime operations into utility functions
+  - Added clear documentation for naive datetime (UTC) design decision
+  - Documented single-worker limitation and multi-worker considerations
+  - Clarified `stable_id` and `client_id` relationship with comments
+  - Added shutdown error handling note in lifespan context
+  - Removed duplicate `import time` statement
+
+- **Server configuration enhancements**
+  - Support `PT1_HOST` environment variable (default: `0.0.0.0`)
+  - Support `PT1_PORT` environment variable (default: `5566`)
+  - Updated `SERVER_SETUP.md` with environment variable documentation
+  - Removed screen deployment section from documentation
+
+- **English-only API responses and commands**
+  - Converted all error messages to English (auth endpoints)
+  - Removed emojis and Unicode characters from AI guide
+  - Added explicit guideline: AI assistants must send English-only PowerShell commands
+  - Includes examples of good vs bad commands in AI guide
+
+- **Documentation reorganization**
+  - Moved `SERVER_SETUP.md` to `prompts/server-setup.md`
+  - Moved `dev.prompt` to `prompts/dev-notes.md`
+  - Standardized all prompt files to kebab-case naming
+  - Updated all references in README.md
+
+- **Code formatting**
+  - Applied black formatter to all Python code
+  - Consistent code style across entire codebase
+
+### Technical Details
+- Datetime utilities: `get_current_time()`, `parse_datetime_string()`, `format_datetime_string()`, `add_seconds()`
+- All datetime operations use naive datetime in UTC timezone
+- Multi-worker mode not supported (in-memory session storage limitation)
+- Path traversal protection uses `Path.resolve()` and prefix validation
+
 ## [0.4.0] - 2025-12-25
 
 ### Changed
