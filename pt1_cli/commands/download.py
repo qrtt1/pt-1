@@ -8,7 +8,7 @@ import sys
 import os
 import requests
 from pathlib import Path
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class DownloadCommand(Command):
@@ -22,6 +22,9 @@ class DownloadCommand(Command):
         if not config.is_configured():
             config.show_config_help()
             return 1
+
+        # 建立 API client
+        client = PT1Client(config)
 
         # 檢查是否提供必要參數
         if len(sys.argv) < 4:
@@ -80,37 +83,7 @@ class DownloadCommand(Command):
         try:
             print(f"Downloading {filename} from command {command_id}...")
 
-            response = requests.get(
-                f"{config.server_url}/download_file/{command_id}/{filename}",
-                headers={"X-API-Token": config.api_token},
-                timeout=30,
-                stream=True,
-            )
-
-            if response.status_code == 401:
-                print("Error: Authentication failed", file=sys.stderr)
-                print(
-                    "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code == 404:
-                print(
-                    f"Error: File '{filename}' not found for command '{command_id}'",
-                    file=sys.stderr,
-                )
-                print(
-                    "Use 'pt1 list-files <command_id>' to see available files",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code != 200:
-                print(
-                    f"Error: Server returned status {response.status_code}",
-                    file=sys.stderr,
-                )
-                print(f"Response: {response.text}", file=sys.stderr)
-                return 1
+            response = client.download_file(command_id, filename)
 
             # 寫入檔案
             total_size = 0

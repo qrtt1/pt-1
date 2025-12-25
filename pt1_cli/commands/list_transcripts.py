@@ -6,7 +6,7 @@ List Transcripts Command
 
 import sys
 import requests
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class ListTranscriptsCommand(Command):
@@ -20,6 +20,9 @@ class ListTranscriptsCommand(Command):
         if not config.is_configured():
             config.show_config_help()
             return 1
+
+        # 建立 API client
+        client = PT1Client(config)
 
         # 解析參數
         client_id = None
@@ -40,33 +43,7 @@ class ListTranscriptsCommand(Command):
 
         # 查詢 transcript 列表
         try:
-            params = {"limit": limit}
-            if client_id:
-                params["client_id"] = client_id
-
-            response = requests.get(
-                f"{config.server_url}/agent_transcripts",
-                headers={"X-API-Token": config.api_token},
-                params=params,
-                timeout=10,
-            )
-
-            if response.status_code == 401:
-                print("Error: Authentication failed", file=sys.stderr)
-                print(
-                    "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code != 200:
-                print(
-                    f"Error: Server returned status {response.status_code}",
-                    file=sys.stderr,
-                )
-                print(f"Response: {response.text}", file=sys.stderr)
-                return 1
-
-            data = response.json()
+            data = client.list_transcripts(stable_id=client_id, limit=limit)
             transcripts = data.get("transcripts", [])
             count = data.get("count", 0)
             filtered_by = data.get("filtered_by_client")

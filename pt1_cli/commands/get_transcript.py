@@ -6,7 +6,7 @@ Get Transcript Command
 
 import sys
 import requests
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class GetTranscriptCommand(Command):
@@ -20,6 +20,9 @@ class GetTranscriptCommand(Command):
         if not config.is_configured():
             config.show_config_help()
             return 1
+
+        # 建立 API client
+        client = PT1Client(config)
 
         # 檢查是否提供 transcript_id
         if len(sys.argv) < 3:
@@ -40,37 +43,10 @@ class GetTranscriptCommand(Command):
 
         # 查詢 transcript（固定使用 content 格式）
         try:
-            response = requests.get(
-                f"{config.server_url}/agent_transcript/{transcript_id}",
-                headers={"X-API-Token": config.api_token},
-                params={"format": "content"},
-                timeout=30,
-            )
-
-            if response.status_code == 401:
-                print("Error: Authentication failed", file=sys.stderr)
-                print(
-                    "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code == 404:
-                print(f"Error: Transcript '{transcript_id}' not found", file=sys.stderr)
-                print(
-                    "Use 'pt1 list-transcripts' to see available transcripts",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code != 200:
-                print(
-                    f"Error: Server returned status {response.status_code}",
-                    file=sys.stderr,
-                )
-                print(f"Response: {response.text}", file=sys.stderr)
-                return 1
+            data = client.get_transcript(transcript_id, format="content")
 
             # 顯示 transcript 內容
-            content = response.text
+            content = data.get("content", "")
             print(f"Transcript: {transcript_id}")
             print("=" * 80)
             print(content)
