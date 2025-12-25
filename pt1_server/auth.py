@@ -440,7 +440,7 @@ def create_session_token(refresh_token: str) -> Tuple[str, datetime]:
     if refresh_token != active_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="無效的 refresh token",
+            detail="Invalid refresh token",
         )
 
     # Generate session token
@@ -529,7 +529,7 @@ async def verify_refresh_token(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="未提供 refresh token",
+            detail="Refresh token not provided",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -537,7 +537,7 @@ async def verify_refresh_token(
     if token != active_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="無效的 refresh token",
+            detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -566,7 +566,7 @@ async def verify_token(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="未提供 session token",
+            detail="Session token not provided",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -574,7 +574,7 @@ async def verify_token(
     if not verify_session_token(token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session token 無效或已過期，請重新啟動 client 以取得新的 token",
+            detail="Session token invalid or expired, please restart client to obtain new token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

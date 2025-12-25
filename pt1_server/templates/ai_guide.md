@@ -8,30 +8,30 @@ This is a remote PowerShell execution service designed for AI assistants to exec
 
 ## Core Capabilities
 
-- ✅ Execute PowerShell commands remotely
-- ✅ Support multiple concurrent clients
-- ✅ File upload/download for command results
-- ✅ Command queuing and status tracking
-- ✅ Complete command lifecycle monitoring
+- Execute PowerShell commands remotely
+- Support multiple concurrent clients
+- File upload/download for command results
+- Command queuing and status tracking
+- Complete command lifecycle monitoring
 
 ## Authentication
 
 ### Token Architecture
 
-PT-1 使用雙層 token 機制：
+PT-1 uses a two-tier token mechanism:
 
-1. **Refresh Token (PT1_API_TOKEN)** - 長效期，用於換取 session token
-2. **Session Token** - 短效期（1 小時），用於 API 呼叫
+1. **Refresh Token (PT1_API_TOKEN)** - Long-lived, used to exchange for session token
+2. **Session Token** - Short-lived (1 hour), used for API calls
 
 ### Public Endpoints (No Authentication Required)
-- `GET /` - 服務概述
-- `GET /ai_guide` - 本指南
+- `GET /` - Service overview
+- `GET /ai_guide` - This guide
 
 ### Token Exchange Endpoint (Requires Refresh Token)
-- `POST /auth/token/exchange` - 換取 session token
+- `POST /auth/token/exchange` - Exchange for session token
 
 ### API Endpoints (Require Session Token)
-所有其他 API 端點都需要有效的 session token。
+All other API endpoints require a valid session token.
 
 ### Authentication Flow
 
@@ -51,14 +51,14 @@ Response:
 
 **Step 2: Use Session Token for API Calls**
 
-支援兩種驗證方式：
+Two authentication methods are supported:
 
-**方式 1：X-API-Token header（推薦）**
+**Method 1: X-API-Token header (recommended)**
 ```http
 X-API-Token: your-session-token-here
 ```
 
-**方式 2：Authorization Bearer header**
+**Method 2: Authorization Bearer header**
 ```http
 Authorization: Bearer your-session-token-here
 ```
@@ -98,7 +98,7 @@ X-API-Token: your-session-token-here
 ```json
 {{
   "command_id": "5b4e01bc",
-  "stable_id": "target_machine_name", 
+  "stable_id": "target_machine_name",
   "command": "Get-Process | Select-Object -First 5",
   "created_at": 1234567890.123,
   "scheduled_at": 1234567890.456,
@@ -187,14 +187,14 @@ X-API-Token: your-session-token-here
 
 ## Command Status Flow
 
-1. **pending** → Command created and queued
-2. **executing** → Client picked up the command 
-3. **completed** → Command finished successfully
-4. **failed** → Command execution failed
+1. **pending** - Command created and queued
+2. **executing** - Client picked up the command
+3. **completed** - Command finished successfully
+4. **failed** - Command execution failed
 
 ## Best Practices for AI Assistants
 
-### ✅ DO
+### DO
 
 1. **Always check command status** before assuming completion:
    ```bash
@@ -238,12 +238,29 @@ X-API-Token: your-session-token-here
    # - Investigating session-level issues
    ```
 
-### ❌ DON'T
+6. **IMPORTANT: Send ONLY English-only PowerShell commands**:
+   - DO NOT use Unicode characters, emojis, or non-ASCII characters in commands
+   - DO NOT use Chinese, Japanese, or other non-English text
+   - Stick to standard ASCII characters only
+   - Example of GOOD commands:
+     ```powershell
+     Get-Process | Select-Object -First 10
+     Get-ChildItem -Path C:\Temp
+     Write-Output "Status: OK"
+     ```
+   - Example of BAD commands (DO NOT USE):
+     ```powershell
+     Write-Output "狀態：正常"  # Contains Chinese characters
+     Get-ChildItem "C:\文件"   # Contains Chinese path
+     ```
+
+### DON'T
 
 1. **Don't assume immediate execution** - commands are queued and may take time
 2. **Don't send sensitive data** without proper security measures
 3. **Don't ignore error status** - always check if command completed successfully
 4. **Don't flood with commands** - respect the queuing system
+5. **Don't use non-English characters** - PowerShell commands must be English-only
 
 ## Error Handling
 
@@ -267,7 +284,7 @@ X-API-Token: your-session-token-here
 
 ## Security Considerations
 
-⚠️ **Important**: This service requires API token authentication.
+**Important**: This service requires API token authentication.
 
 - **API Token Required**: All endpoints (except `/` and `/ai_guide`) require valid API token
 - **Permissions**: Commands execute with client machine permissions
