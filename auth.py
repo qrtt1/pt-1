@@ -7,9 +7,11 @@ from fastapi import Header, HTTPException, status
 
 # Path to tokens file (persistent source of truth)
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
+SESSION_TOKENS_FILE = os.path.join(os.path.dirname(__file__), ".session_tokens.json")
 
-# Session token storage (in-memory)
+# Session token storage (in-memory, loaded from file on startup)
 _session_tokens: Dict[str, Dict] = {}  # session_token -> {refresh_token, expires_at, created_at}
+_session_tokens_loaded = False
 
 # In-memory state
 _active_token: Optional[str] = None
@@ -65,6 +67,71 @@ def _persist_tokens(data: dict):
     """Persist tokens.json (overwrites file)."""
     with open(TOKENS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+
+def _load_session_tokens():
+    """Load session tokens from file on startup."""
+    global _session_tokens, _session_tokens_loaded
+
+    if _session_tokens_loaded:
+        return
+
+    if not os.path.exists(SESSION_TOKENS_FILE):
+        _session_tokens_loaded = True
+        return
+
+    try:
+        with open(SESSION_TOKENS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        now = datetime.utcnow()
+        loaded_count = 0
+        expired_count = 0
+
+        for session_token, token_info in data.items():
+            try:
+                expires_at = datetime.fromisoformat(token_info["expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                created_at = datetime.fromisoformat(token_info["created_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+
+                # Skip expired tokens
+                if expires_at <= now:
+                    expired_count += 1
+                    continue
+
+                _session_tokens[session_token] = {
+                    "refresh_token": token_info["refresh_token"],
+                    "expires_at": expires_at,
+                    "created_at": created_at,
+                }
+                loaded_count += 1
+
+            except (KeyError, ValueError) as e:
+                print(f"[Auth] Warning: Skipping invalid session token entry: {e}")
+                continue
+
+        print(f"[Auth] Loaded {loaded_count} session token(s) from disk (skipped {expired_count} expired)")
+        _session_tokens_loaded = True
+
+    except (json.JSONDecodeError, IOError) as e:
+        print(f"[Auth] Warning: Failed to load session tokens: {e}")
+        _session_tokens_loaded = True
+
+
+def _persist_session_tokens():
+    """Persist session tokens to file."""
+    data = {}
+    for session_token, token_info in _session_tokens.items():
+        data[session_token] = {
+            "refresh_token": token_info["refresh_token"],
+            "expires_at": token_info["expires_at"].isoformat() + "Z",
+            "created_at": token_info["created_at"].isoformat() + "Z",
+        }
+
+    try:
+        with open(SESSION_TOKENS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except IOError as e:
+        print(f"[Auth] Warning: Failed to persist session tokens: {e}")
 
 
 def _parse_token_entry(item: dict) -> Optional[Tuple[str, str, str, Optional[int], Optional[datetime]]]:
@@ -259,6 +326,9 @@ def create_session_token(refresh_token: str) -> Tuple[str, datetime]:
     Returns:
         Tuple of (session_token, expires_at)
     """
+    # Load existing session tokens on first use
+    _load_session_tokens()
+
     # Verify refresh token is valid
     active_token, _, _ = get_active_token_with_metadata()
     if refresh_token != active_token:
@@ -271,12 +341,15 @@ def create_session_token(refresh_token: str) -> Tuple[str, datetime]:
     session_token = str(uuid.uuid4())
     expires_at = datetime.utcnow() + timedelta(seconds=_session_token_duration_seconds())
 
-    # Store session token
+    # Store session token in memory
     _session_tokens[session_token] = {
         "refresh_token": refresh_token,
         "expires_at": expires_at,
         "created_at": datetime.utcnow(),
     }
+
+    # Persist to disk
+    _persist_session_tokens()
 
     print(f"[Auth] Created session token {session_token[:8]}... (expires at {expires_at.isoformat()}Z)")
 
@@ -293,6 +366,9 @@ def verify_session_token(session_token: str) -> bool:
     Returns:
         True if valid, False otherwise
     """
+    # Load existing session tokens on first use
+    _load_session_tokens()
+
     if session_token not in _session_tokens:
         return False
 
@@ -303,13 +379,16 @@ def verify_session_token(session_token: str) -> bool:
     if token_data["expires_at"] <= now:
         # Clean up expired token
         del _session_tokens[session_token]
+        _persist_session_tokens()
         return False
 
     return True
 
 
 def cleanup_expired_sessions():
-    """Remove expired session tokens from memory."""
+    """Remove expired session tokens from memory and disk."""
+    _load_session_tokens()
+
     now = datetime.utcnow()
     expired = [
         token for token, data in _session_tokens.items()
@@ -320,6 +399,7 @@ def cleanup_expired_sessions():
 
     if expired:
         print(f"[Auth] Cleaned up {len(expired)} expired session token(s)")
+        _persist_session_tokens()
 
 
 async def verify_refresh_token(
