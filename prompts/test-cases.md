@@ -279,9 +279,9 @@ pt1 get-transcript <transcript_id>
 
 ---
 
-## 測試案例 6: 多 Client 隔離驗證
+## 測試案例 6: 多 Client Runtime 隔離驗證
 
-**目的**: 驗證同一台機器上的多個 client agents 可以獨立運作且命令歷史正確隔離
+**目的**: 驗證同一台機器上的多個 client agents 在 runtime 期間完全獨立運作，互不影響
 
 **前置條件**: 在同一台 Windows 機器上建立兩個 client agents
 
@@ -296,37 +296,63 @@ pt1 quickstart e2e-tests-2
 # 3. 等待 5-10 秒後，列出所有 clients
 pt1 list-clients
 
-# 4. 對第一個 client 執行命令
-pt1 send e2e-tests "Write-Output 'Message from client 1'"
-pt1 wait <command_id_1>
+# 4. 對兩個 clients 同時發送長時間運行的命令（測試並行執行）
+pt1 send e2e-tests "1..10 | ForEach-Object { Start-Sleep -Seconds 1; Write-Output \"Client1-Step-\$_\" }"
+CMD1_ID=<command_id_1>
 
-# 5. 對第二個 client 執行命令
-pt1 send e2e-tests-2 "Write-Output 'Message from client 2'"
-pt1 wait <command_id_2>
+pt1 send e2e-tests-2 "1..10 | ForEach-Object { Start-Sleep -Seconds 1; Write-Output \"Client2-Step-\$_\" }"
+CMD2_ID=<command_id_2>
 
-# 6. 驗證命令歷史隔離
-pt1 history e2e-tests 5
-pt1 history e2e-tests-2 5
+# 5. 同時等待兩個命令（驗證並行執行）
+pt1 wait $CMD1_ID &
+pt1 wait $CMD2_ID &
+wait  # 等待兩個 wait 命令完成
 
-# 7. 清理：終止第二個 client
+# 6. 驗證兩個命令都成功完成且輸出不混淆
+pt1 get-result $CMD1_ID | grep "Client1-Step"
+pt1 get-result $CMD2_ID | grep "Client2-Step"
+
+# 7. 對第一個 client 發送會產生檔案的命令
+pt1 send e2e-tests "Write-Output 'File from client 1' | Out-File client1.txt"
+pt1 wait <command_id_3>
+
+# 8. 對第二個 client 發送會產生檔案的命令（驗證檔案隔離）
+pt1 send e2e-tests-2 "Write-Output 'File from client 2' | Out-File client2.txt"
+pt1 wait <command_id_4>
+
+# 9. 列出兩個 clients 的檔案（驗證工作目錄隔離）
+pt1 list-files <command_id_3>
+pt1 list-files <command_id_4>
+
+# 10. 驗證命令歷史完全隔離
+pt1 history e2e-tests 10
+pt1 history e2e-tests-2 10
+
+# 11. 清理：終止第二個 client
 pt1 terminate e2e-tests-2
 
-# 8. 驗證第二個 client 已離線
+# 12. 驗證終止一個 client 不影響另一個
 sleep 5
 pt1 list-clients
+pt1 send e2e-tests "Write-Output 'Client 1 still alive'"
+pt1 wait <command_id_5>
 ```
 
 **驗收標準 (Acceptance Criteria)**:
 - [ ] `pt1 quickstart e2e-tests-2` 回傳 exit code 0
-- [ ] `pt1 list-clients` 顯示 2 個 `[ONLINE]` 的 clients（e2e-tests 和 e2e-tests-2）
-- [ ] 兩個 clients 的 HOSTNAME 相同（確認在同一台機器）
-- [ ] 兩個 `pt1 wait` 都回傳 exit code 0
-- [ ] 第一個輸出包含 "Message from client 1"
-- [ ] 第二個輸出包含 "Message from client 2"
-- [ ] `pt1 history e2e-tests` 只顯示 client 1 的記錄（包含 "Message from client 1"）
-- [ ] `pt1 history e2e-tests-2` 只顯示 client 2 的記錄（包含 "Message from client 2"）
-- [ ] `pt1 terminate e2e-tests-2` 回傳 exit code 0
-- [ ] 終止後 `pt1 list-clients` 只顯示 e2e-tests（或 e2e-tests-2 狀態為 OFFLINE）
+- [ ] `pt1 list-clients` 顯示 2 個 `[ONLINE]` 的 clients，HOSTNAME 相同但 client_id 不同
+- [ ] 兩個長時間命令可以**並行執行**（同時運行，不會互相阻塞）
+- [ ] Client1 的輸出只包含 "Client1-Step-1" 到 "Client1-Step-10"
+- [ ] Client2 的輸出只包含 "Client2-Step-1" 到 "Client2-Step-10"
+- [ ] 兩個輸出沒有混淆（Client1 輸出不包含 Client2 的內容，反之亦然）
+- [ ] `pt1 list-files <cmd3>` 只顯示 "client1.txt"
+- [ ] `pt1 list-files <cmd4>` 只顯示 "client2.txt"
+- [ ] 兩個 client 的工作目錄互相獨立（不同的 temp 目錄）
+- [ ] `pt1 history e2e-tests` 只顯示 client 1 的 3 個命令
+- [ ] `pt1 history e2e-tests-2` 只顯示 client 2 的 2 個命令
+- [ ] History 記錄沒有交叉或混淆
+- [ ] `pt1 terminate e2e-tests-2` 成功後，e2e-tests 仍然 ONLINE 且可接收命令
+- [ ] 終止 client 2 後，client 1 仍可正常執行命令
 
 ---
 
