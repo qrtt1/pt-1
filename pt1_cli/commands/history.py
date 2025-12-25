@@ -7,7 +7,7 @@ History Command
 import sys
 import requests
 from datetime import datetime
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class HistoryCommand(Command):
@@ -21,6 +21,9 @@ class HistoryCommand(Command):
         if not config.is_configured():
             config.show_config_help()
             return 1
+
+        # 建立 API client
+        client = PT1Client(config)
 
         args = sys.argv[2:]
         verbose = False
@@ -67,29 +70,7 @@ class HistoryCommand(Command):
 
         # 查詢命令歷史
         try:
-            response = requests.get(
-                f"{config.server_url}/command_history",
-                params={"stable_id": client_id, "limit": limit},
-                headers={"X-API-Token": config.api_token},
-                timeout=10,
-            )
-
-            if response.status_code == 401:
-                print("Error: Authentication failed", file=sys.stderr)
-                print(
-                    "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code != 200:
-                print(
-                    f"Error: Server returned status {response.status_code}",
-                    file=sys.stderr,
-                )
-                print(f"Response: {response.text}", file=sys.stderr)
-                return 1
-
-            data = response.json()
+            data = client.get_command_history(stable_id=client_id, limit=limit)
             commands = data.get("commands", [])
             total = data.get("total", 0)
 

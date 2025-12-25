@@ -319,6 +319,101 @@ class PT1Client:
         response.raise_for_status()
         return response.json()
 
+    def list_files(self, command_id: str) -> dict:
+        """
+        列出命令產生的檔案
+
+        Args:
+            command_id: 命令 ID
+
+        Returns:
+            dict: 檔案列表
+
+        Raises:
+            requests.HTTPError: 當請求失敗時
+        """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
+        response = requests.get(
+            f"{self.base_url}/list_files/{command_id}", headers=headers
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def download_file(self, command_id: str, filename: str) -> requests.Response:
+        """
+        下載命令產生的檔案
+
+        Args:
+            command_id: 命令 ID
+            filename: 檔案名稱
+
+        Returns:
+            requests.Response: 檔案內容（需要使用 stream=True）
+
+        Raises:
+            requests.HTTPError: 當請求失敗時
+        """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
+        response = requests.get(
+            f"{self.base_url}/download_file/{command_id}/{filename}",
+            headers=headers,
+            stream=True
+        )
+        response.raise_for_status()
+        return response
+
+    def list_transcripts(self, stable_id: Optional[str] = None, limit: int = 50) -> dict:
+        """
+        列出 agent 執行記錄
+
+        Args:
+            stable_id: 客戶端 ID（可選）
+            limit: 限制結果數量
+
+        Returns:
+            dict: Transcript 列表
+
+        Raises:
+            requests.HTTPError: 當請求失敗時
+        """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
+        params = {"limit": limit}
+        if stable_id:
+            params["stable_id"] = stable_id
+
+        response = requests.get(
+            f"{self.base_url}/agent_transcripts", headers=headers, params=params
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_transcript(self, transcript_id: str, format: str = "content") -> dict:
+        """
+        取得 transcript 內容
+
+        Args:
+            transcript_id: Transcript ID
+            format: 格式（content 或 metadata）
+
+        Returns:
+            dict: Transcript 內容
+
+        Raises:
+            requests.HTTPError: 當請求失敗時
+        """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
+        response = requests.get(
+            f"{self.base_url}/agent_transcript/{transcript_id}",
+            headers=headers,
+            params={"format": format}
+        )
+        response.raise_for_status()
+        return response.json()
+
     def terminate_client(self, client_id: str) -> dict:
         """
         發送優雅終止信號給指定客戶端

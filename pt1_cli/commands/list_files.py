@@ -6,7 +6,7 @@ List Files Command
 
 import sys
 import requests
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class ListFilesCommand(Command):
@@ -20,6 +20,9 @@ class ListFilesCommand(Command):
         if not config.is_configured():
             config.show_config_help()
             return 1
+
+        # 建立 API client
+        client = PT1Client(config)
 
         # 檢查是否提供 command_id
         if len(sys.argv) < 3:
@@ -38,31 +41,7 @@ class ListFilesCommand(Command):
 
         # 查詢檔案列表
         try:
-            response = requests.get(
-                f"{config.server_url}/list_files/{command_id}",
-                headers={"X-API-Token": config.api_token},
-                timeout=10,
-            )
-
-            if response.status_code == 401:
-                print("Error: Authentication failed", file=sys.stderr)
-                print(
-                    "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code == 404:
-                print(f"Error: Command ID '{command_id}' not found", file=sys.stderr)
-                return 1
-            elif response.status_code != 200:
-                print(
-                    f"Error: Server returned status {response.status_code}",
-                    file=sys.stderr,
-                )
-                print(f"Response: {response.text}", file=sys.stderr)
-                return 1
-
-            data = response.json()
+            data = client.list_files(command_id)
             files = data.get("files", [])
             total_files = data.get("total_files", 0)
 
