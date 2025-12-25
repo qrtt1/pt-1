@@ -412,7 +412,12 @@ class PT1Client:
             params={"format": format}
         )
         response.raise_for_status()
-        return response.json()
+
+        # When format is "content", API returns plain text
+        if format == "content":
+            return {"content": response.text}
+        else:
+            return response.json()
 
     def terminate_client(self, client_id: str) -> dict:
         """
