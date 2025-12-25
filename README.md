@@ -209,4 +209,4 @@ pt-1/
 
 ## 授權
 
-此專案供學習與開發使用。
+MIT License - 詳見 [LICENSE](LICENSE) 檔案
