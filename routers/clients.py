@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import PlainTextResponse, Response
-from auth import verify_refresh_token, verify_token, create_session_token
+from auth import verify_token
 import uuid
 from typing import Dict, Optional
 
@@ -17,19 +17,16 @@ def load_template(template_name: str) -> str:
 def get_win_agent_script(
     request: Request,
     client_id: Optional[str] = None,
-    refresh_token: str = Depends(verify_refresh_token)
+    session_token: str = Depends(verify_token)
 ):
     """Get Windows production agent script with transcript logging
 
     Query parameters:
         client_id: Optional custom client ID (e.g., ?client_id=my-dev-pc)
 
-    Note: This endpoint uses refresh token (PT1_API_TOKEN) to generate a session token
-    that will be embedded in the script.
+    Note: This endpoint accepts session token and embeds it directly in the script.
+    The CLI ensures a fresh token is used for full validity period.
     """
-    # Exchange refresh token for session token
-    session_token, _ = create_session_token(refresh_token)
-
     # 自動取得當前伺服器 URL
     base_url = f"{request.url.scheme}://{request.url.netloc}"
 
