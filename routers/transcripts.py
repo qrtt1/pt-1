@@ -12,7 +12,7 @@ router = APIRouter()
 async def upload_agent_transcript(
     client_id: str,
     transcript_file: UploadFile = File(...),
-    session_id: Optional[str] = None,
+    run_id: Optional[str] = None,
     metadata: Optional[str] = None,
     transcript_mgr: TranscriptManager = Depends(get_transcript_manager),
     token: str = Depends(verify_token)
@@ -23,14 +23,14 @@ async def upload_agent_transcript(
     Args:
         client_id: Agent client ID
         transcript_file: PowerShell transcript file
-        session_id: Optional session identifier
+        run_id: Optional run identifier (polling cycle number)
         metadata: Optional JSON metadata string
     """
     try:
         # Parse metadata if provided
         metadata_dict = {}
-        if session_id:
-            metadata_dict["session_id"] = session_id
+        if run_id:
+            metadata_dict["run_id"] = run_id
 
         if metadata:
             try:

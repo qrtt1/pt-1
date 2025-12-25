@@ -34,7 +34,7 @@ class TranscriptManager:
         Args:
             client_id: Agent client ID
             transcript_file: Uploaded transcript file
-            metadata: Optional metadata (session_id, etc.)
+            metadata: Optional metadata (run_id, etc.)
 
         Returns:
             transcript_id: Generated transcript identifier

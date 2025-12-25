@@ -168,7 +168,7 @@ X-API-Token: your-session-token-here
     {{
       "transcript_id": "client-id-123_20240914_143052_123",
       "client_id": "client-id-123",
-      "session_id": "session-001",
+      "run_id": "run-001",
       "upload_time": "2024-09-14T14:30:52.123456",
       "file_size": 2048,
       "created_time": "2024-09-14T14:30:50.000000"

@@ -50,10 +50,10 @@ Write-Host "Press Ctrl+C to stop" -ForegroundColor Yellow
 Write-Host ""
 
 # Upload transcript function
-function Upload-SessionTranscript {{
+function Upload-RunTranscript {{
     param(
         [string]$TranscriptPath,
-        [string]$SessionId,
+        [string]$RunId,
         [string]$ClientId,
         [string]$ServerUrl
     )
@@ -72,14 +72,14 @@ function Upload-SessionTranscript {{
         $LF = "`r`n"
         $bodyLines = (
             "--$boundary",
-            "Content-Disposition: form-data; name=`"transcript_file`"; filename=`"$SessionId-transcript.txt`"",
+            "Content-Disposition: form-data; name=`"transcript_file`"; filename=`"$RunId-transcript.txt`"",
             "Content-Type: text/plain",
             "",
             $fileEnc,
             "--$boundary",
-            "Content-Disposition: form-data; name=`"session_id`"",
+            "Content-Disposition: form-data; name=`"run_id`"",
             "",
-            $SessionId,
+            $RunId,
             "--$boundary--",
             ""
         ) -join $LF
@@ -92,20 +92,20 @@ function Upload-SessionTranscript {{
 }}
 
 # Main execution loop with self-healing and auto-restart
-$sessionCount = 0
+$runCount = 0
 
 while ($true) {{
-    $sessionCount++
-    $sessionId = "session-{{0:000}}" -f $sessionCount
+    $runCount++
+    $runId = "run-{{0:000}}" -f $runCount
 
-    # Start transcript for this session
-    $transcriptPath = Join-Path $workDir "$sessionId-transcript.txt"
+    # Start transcript for this run
+    $transcriptPath = Join-Path $workDir "$runId-transcript.txt"
     Start-Transcript -Path $transcriptPath -Force | Out-Null
 
     try {{
         # Download and save client script to file
         $clientScript = Invoke-RestMethod -Uri "$serverUrl/client_install.ps1" -Headers @{{"X-API-Token"=$apiToken}} -UseBasicParsing
-        $clientScriptPath = Join-Path $workDir "$sessionId-client.ps1"
+        $clientScriptPath = Join-Path $workDir "$runId-client.ps1"
         $clientScript | Out-File -FilePath $clientScriptPath -Encoding UTF8
 
         # Execute client script
@@ -117,8 +117,8 @@ while ($true) {{
         # Check for graceful exit flag (created by client_install.ps1)
         $gracefulExitFlag = Join-Path $workDir "GRACEFUL_EXIT.flag"
         if (Test-Path $gracefulExitFlag) {{
-            Write-Host "[$sessionId] Detected flag: $gracefulExitFlag" -ForegroundColor Gray
-            Write-Host "[$sessionId] Received graceful exit signal from server" -ForegroundColor Cyan
+            Write-Host "[$runId] Detected flag: $gracefulExitFlag" -ForegroundColor Gray
+            Write-Host "[$runId] Received graceful exit signal from server" -ForegroundColor Cyan
             Write-Host "Agent stopping gracefully..." -ForegroundColor Green
 
             # Clean up flag
@@ -142,12 +142,12 @@ while ($true) {{
 
         # Treat 401 as auth failure: stop agent to avoid infinite retries
         if ($statusCode -eq 401 -or $errorMsg -like "*401*Unauthorized*") {{
-            Write-Host "[$sessionId] Received 401 Unauthorized, stopping agent (check API token/rotation)" -ForegroundColor Red
+            Write-Host "[$runId] Received 401 Unauthorized, stopping agent (check API token/rotation)" -ForegroundColor Red
             break
         }}
 
-        Write-Host "[$sessionId] Session failed: $errorMsg" -ForegroundColor Red
-        Write-Host "[$sessionId] Auto-healing: Retrying in 10 seconds..." -ForegroundColor Yellow
+        Write-Host "[$runId] Run failed: $errorMsg" -ForegroundColor Red
+        Write-Host "[$runId] Auto-healing: Retrying in 10 seconds..." -ForegroundColor Yellow
         Start-Sleep -Seconds 10
     }} finally {{
         # Stop transcript
@@ -159,9 +159,9 @@ while ($true) {{
 
         if ($shouldUploadTranscript) {{
             # Upload transcript using dedicated function (silent, no output)
-            $uploadSuccess = Upload-SessionTranscript -TranscriptPath $transcriptPath -SessionId $sessionId -ClientId $stableId -ServerUrl $serverUrl
+            $uploadSuccess = Upload-RunTranscript -TranscriptPath $transcriptPath -RunId $runId -ClientId $stableId -ServerUrl $serverUrl
         }} else {{
-            Write-Host "[$sessionId] No command executed - transcript upload skipped" -ForegroundColor Gray
+            Write-Host "[$runId] No command executed - transcript upload skipped" -ForegroundColor Gray
             # Clean up the skip flag
             Remove-Item $skipTranscriptFlag -Force -ErrorAction SilentlyContinue
         }}
