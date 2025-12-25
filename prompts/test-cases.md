@@ -144,12 +144,13 @@ pt1 wait <command_id>
 pt1 history <client_id> 5
 ```
 
-**預期結果**:
-- `auth` 成功驗證
-- `list-clients` 顯示至少一個 ONLINE 的 client
-- `send` 返回 command_id
-- `wait` 顯示系統資訊（電腦名稱、Windows 版本、架構、記憶體）
-- `history` 顯示最近 5 條命令記錄
+**驗收標準 (Acceptance Criteria)**:
+- [ ] `pt1 auth` 回傳 exit code 0，輸出包含 "Authentication successful"
+- [ ] `pt1 list-clients` 顯示至少一個狀態為 `[ONLINE]` 的 client
+- [ ] `pt1 send` 回傳 exit code 0，輸出包含 "Command ID: <uuid>"
+- [ ] `pt1 wait` 回傳 exit code 0，status 顯示 "completed"
+- [ ] 輸出包含至少 4 個欄位：CsName, WindowsVersion, OsArchitecture, TotalPhysicalMemory
+- [ ] `pt1 history` 顯示表格，包含至少 1 筆記錄，最多 5 筆
 
 ---
 
@@ -175,11 +176,13 @@ pt1 download <command_id> processes.csv ./downloads/
 cat ./downloads/processes.csv
 ```
 
-**預期結果**:
-- 命令成功執行
-- `list-files` 顯示 `processes.csv`
-- 檔案成功下載到 `./downloads/` 目錄
-- CSV 檔案包含 process 資訊（Name, CPU, WorkingSet）
+**驗收標準 (Acceptance Criteria)**:
+- [ ] `pt1 send` 回傳 exit code 0
+- [ ] `pt1 wait` 回傳 exit code 0，status 為 "completed"
+- [ ] `pt1 list-files` 顯示檔案列表，包含 "processes.csv"，檔案大小 > 0
+- [ ] `pt1 download` 回傳 exit code 0，檔案儲存至 `./downloads/processes.csv`
+- [ ] CSV 檔案包含 header: "Name","CPU","WorkingSet"
+- [ ] CSV 檔案至少包含 1 筆資料（不含 header）
 
 ---
 
@@ -202,9 +205,12 @@ pt1 send <client_id> "Get-Service -Name wuauserv | Select-Object Name, DisplayNa
 pt1 wait <command_id>
 ```
 
-**預期結果**:
-- 第一個命令顯示前 10 個執行中的 services
-- 第二個命令顯示 Windows Update service 的詳細資訊
+**驗收標準 (Acceptance Criteria)**:
+- [ ] 第一個 `pt1 wait` 回傳 exit code 0，status 為 "completed"
+- [ ] 輸出包含 1-10 個 services，每個都有 Name, DisplayName, Status 欄位
+- [ ] 所有顯示的 services Status 都是 "Running"
+- [ ] 第二個 `pt1 wait` 回傳 exit code 0，status 為 "completed"
+- [ ] 輸出包含 wuauserv service 的資訊（Name, DisplayName, Status, StartType）
 
 ---
 
@@ -230,10 +236,13 @@ pt1 download <command_id> disk_report.json
 cat disk_report.json | jq '.'
 ```
 
-**預期結果**:
-- 命令成功執行
-- JSON 檔案包含磁碟資訊（Name, Used, Free, UsedGB, FreeGB）
-- 檔案格式正確可被 jq 解析
+**驗收標準 (Acceptance Criteria)**:
+- [ ] `pt1 wait` 回傳 exit code 0，status 為 "completed"
+- [ ] `pt1 list-files` 顯示 "disk_report.json"
+- [ ] `pt1 download` 成功下載檔案
+- [ ] JSON 檔案可被 `jq '.'` 正確解析（valid JSON）
+- [ ] JSON 包含至少一個磁碟，每個磁碟有 Name, Used, Free, UsedGB, FreeGB 欄位
+- [ ] UsedGB 和 FreeGB 為數字型態
 
 ---
 
@@ -259,11 +268,14 @@ pt1 list-transcripts <client_id> 5
 pt1 get-transcript <transcript_id>
 ```
 
-**預期結果**:
-- 命令執行失敗，顯示錯誤訊息
-- `history -v` 顯示詳細的命令執行資訊包括錯誤
-- `list-transcripts` 顯示最近的 5 個執行記錄
-- `get-transcript` 顯示完整的 PowerShell session transcript，包含錯誤輸出
+**驗收標準 (Acceptance Criteria)**:
+- [ ] `pt1 wait` 回傳 exit code 1（命令失敗）
+- [ ] 輸出 status 為 "failed" 或 "error"
+- [ ] 錯誤訊息包含 "Get-NonExistentCommand" 或類似的錯誤說明
+- [ ] `pt1 history -v` 顯示該命令，status 欄位標示為失敗
+- [ ] Verbose mode 顯示完整的錯誤資訊
+- [ ] `pt1 list-transcripts` 顯示 1-5 筆記錄
+- [ ] `pt1 get-transcript` 顯示完整 transcript，包含錯誤輸出和 PowerShell 錯誤堆疊
 
 ---
 
@@ -291,10 +303,13 @@ pt1 history <client_id_1> 3
 pt1 history <client_id_2> 3
 ```
 
-**預期結果**:
-- 兩個 clients 都成功執行命令
-- 各自返回自己的系統資訊
-- History 顯示各自的執行記錄
+**驗收標準 (Acceptance Criteria)**:
+- [ ] `pt1 list-clients` 顯示至少 2 個 `[ONLINE]` 的 clients
+- [ ] 兩個 `pt1 wait` 都回傳 exit code 0
+- [ ] 第一個 client 的輸出 CsName 與第二個不同（確認是不同機器）
+- [ ] `pt1 history <client_id_1>` 只顯示該 client 的記錄
+- [ ] `pt1 history <client_id_2>` 只顯示該 client 的記錄
+- [ ] 兩個 history 的記錄不會混淆
 
 ---
 
@@ -317,11 +332,14 @@ cat ~/.pt-1/.session_cache | jq '.'
 # 命令格式應為: iwr "https://server/win_agent.ps1?client_id=..." -UseBasicParsing -Headers @{"X-API-Token"="..."} | iex
 ```
 
-**預期結果**:
-- `quickstart` 顯示完整的 PowerShell oneliner
-- 自訂 client ID 正確出現在 URL query parameter 中
-- Session token 是新產生的（有完整 1 小時有效期）
-- `.session_cache` 包含最新的 session token
+**驗收標準 (Acceptance Criteria)**:
+- [ ] `pt1 quickstart` 回傳 exit code 0
+- [ ] 輸出包含 "PowerShell Client Quickstart" 標題
+- [ ] 輸出包含完整的 PowerShell oneliner（以 `iwr` 開頭，以 `| iex` 結尾）
+- [ ] `pt1 quickstart test-machine-01` 的 URL 包含 `?client_id=test-machine-01`
+- [ ] 每次執行 quickstart 都顯示 "Session token obtained" 訊息
+- [ ] `~/.pt-1/.session_cache` 的 `expires_at` 時間約為當前時間 + 1 小時
+- [ ] PowerShell oneliner 包含 `X-API-Token` header
 
 ---
 
@@ -350,12 +368,14 @@ pt1 quickstart test-refresh
 cat ~/.pt-1/.session_cache | jq '.expires_at'
 ```
 
-**預期結果**:
-- 第一次 `list-clients` 取得新的 session token
-- `.session_cache` 包含 session token 和過期時間
-- 第二次 `list-clients` reuse cached token（不會顯示 "Session token obtained" 訊息）
-- `quickstart` 強制取得新 token（顯示 "Session token obtained"）
-- 快取中的 `expires_at` 時間更新
+**驗收標準 (Acceptance Criteria)**:
+- [ ] 執行 `rm ~/.pt-1/.session_cache` 成功
+- [ ] 第一次 `pt1 list-clients` 顯示 "Session token obtained" 訊息
+- [ ] `~/.pt-1/.session_cache` 檔案存在且可讀
+- [ ] Cache 包含 `session_token`, `expires_at`, `server_url`, `refresh_token` 欄位
+- [ ] 第二次 `pt1 list-clients` 不顯示 "Session token obtained" 訊息（reuse）
+- [ ] `pt1 quickstart` 顯示 "Session token obtained" 訊息（強制更新）
+- [ ] 執行 quickstart 後 `expires_at` 時間更新為新的時間
 
 ---
 
@@ -378,11 +398,13 @@ pt1 send <client_id> "1..5 | ForEach-Object { Start-Sleep -Seconds 2; Write-Outp
 pt1 wait <command_id> --interval 1
 ```
 
-**預期結果**:
-- 第一個命令等待 10 秒後顯示當前時間
-- `wait` 正確輪詢並在命令完成時顯示結果
-- 第二個命令顯示 5 個步驟的輸出
-- 自訂 interval 讓輪詢更頻繁
+**驗收標準 (Acceptance Criteria)**:
+- [ ] 第一個 `pt1 wait` 等待約 10 秒（可觀察到輪詢進度）
+- [ ] 命令完成後顯示當前日期時間
+- [ ] Status 顯示 "completed"，Duration 約為 10 秒
+- [ ] 第二個 `pt1 wait --interval 1` 使用 1 秒輪詢間隔
+- [ ] 輸出包含 "Step 1" 到 "Step 5" 五行
+- [ ] 兩個命令都回傳 exit code 0
 
 ---
 
@@ -425,11 +447,16 @@ ls -lh ./health_check/
 pt1 history <client_id> 10
 ```
 
-**預期結果**:
-- 所有命令成功執行
-- 三個檔案都正確產生並下載
-- 檔案內容格式正確
-- History 顯示完整的執行記錄
+**驗收標準 (Acceptance Criteria)**:
+- [ ] `pt1 auth` 和 `pt1 list-clients` 都回傳 exit code 0
+- [ ] 三個 `pt1 send` 命令都成功，各返回不同的 command_id
+- [ ] 三個 `pt1 wait` 都回傳 exit code 0，status 為 "completed"
+- [ ] 三個 `pt1 download` 都成功，檔案存在於 `./health_check/` 目錄
+- [ ] `system_info.json` 是 valid JSON，包含系統資訊
+- [ ] `services.csv` 是 valid CSV，包含至少一筆 service 記錄
+- [ ] `disk_info.json` 是 valid JSON，包含磁碟資訊
+- [ ] `pt1 history` 顯示至少 3 筆記錄（剛才執行的命令）
+- [ ] 所有檔案大小 > 0 bytes
 
 ---
 
