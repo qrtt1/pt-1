@@ -19,14 +19,16 @@ class TranscriptManager:
 
     def _generate_transcript_id(self, client_id: str) -> str:
         """Generate transcript ID with timestamp"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # microseconds to milliseconds
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[
+            :-3
+        ]  # microseconds to milliseconds
         return f"{client_id}_{timestamp}"
 
     async def upload_transcript(
         self,
         client_id: str,
         transcript_file: UploadFile,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ) -> str:
         """
         Upload and store agent transcript
@@ -57,7 +59,7 @@ class TranscriptManager:
                 "filename": transcript_file.filename,
                 "upload_time": datetime.now().isoformat(),
                 "file_size": len(content),
-                **metadata
+                **metadata,
             }
 
             with open(metadata_path, "w", encoding="utf-8") as f:
@@ -66,9 +68,7 @@ class TranscriptManager:
         return transcript_id
 
     def list_transcripts(
-        self,
-        client_id: Optional[str] = None,
-        limit: int = 100
+        self, client_id: Optional[str] = None, limit: int = 100
     ) -> List[Dict]:
         """
         List available transcripts
@@ -90,7 +90,7 @@ class TranscriptManager:
         transcript_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
 
         for transcript_file in transcript_files[:limit]:
-            if transcript_file.name.endswith('.txt'):
+            if transcript_file.name.endswith(".txt"):
                 transcript_id = transcript_file.stem
 
                 # Try to load metadata
@@ -108,11 +108,19 @@ class TranscriptManager:
                 stat_info = transcript_file.stat()
                 transcript_info = {
                     "transcript_id": transcript_id,
-                    "client_id": transcript_id.split('_')[0] if '_' in transcript_id else "unknown",
+                    "client_id": (
+                        transcript_id.split("_")[0]
+                        if "_" in transcript_id
+                        else "unknown"
+                    ),
                     "file_size": stat_info.st_size,
-                    "created_time": datetime.fromtimestamp(stat_info.st_ctime).isoformat(),
-                    "modified_time": datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
-                    **metadata
+                    "created_time": datetime.fromtimestamp(
+                        stat_info.st_ctime
+                    ).isoformat(),
+                    "modified_time": datetime.fromtimestamp(
+                        stat_info.st_mtime
+                    ).isoformat(),
+                    **metadata,
                 }
 
                 transcripts.append(transcript_info)

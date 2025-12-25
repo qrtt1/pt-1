@@ -81,8 +81,12 @@ class HistoryCommand(Command):
                     if not (
                         cmd.get("status", "").startswith("client_call_")
                         and (
-                            cmd.get("command", "").startswith("client_api GET /next_command")
-                            or cmd.get("command", "").startswith("client_api POST /register_client")
+                            cmd.get("command", "").startswith(
+                                "client_api GET /next_command"
+                            )
+                            or cmd.get("command", "").startswith(
+                                "client_api POST /register_client"
+                            )
                         )
                     )
                 ]
@@ -99,7 +103,9 @@ class HistoryCommand(Command):
                 return 0
 
             # 顯示命令列表
-            print(f"{'TIME':<19} {'COMMAND ID':<36} {'STATUS':<16} {'TYPE':<10} {'DETAIL':<34}")
+            print(
+                f"{'TIME':<19} {'COMMAND ID':<36} {'STATUS':<16} {'TYPE':<10} {'DETAIL':<34}"
+            )
             print("-" * 80)
 
             for cmd in commands:
@@ -109,7 +115,9 @@ class HistoryCommand(Command):
                 created_at = cmd.get("created_at")
                 time_str = "N/A"
                 if isinstance(created_at, (int, float)):
-                    time_str = datetime.fromtimestamp(created_at).strftime("%Y-%m-%d %H:%M:%S")
+                    time_str = datetime.fromtimestamp(created_at).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
 
                 entry_type = "command"
                 detail = command_text
@@ -118,7 +126,7 @@ class HistoryCommand(Command):
                     entry_type = "client_api"
                     detail = command_text
                     if detail.startswith("client_api "):
-                        detail = detail[len("client_api "):]
+                        detail = detail[len("client_api ") :]
                     if args:
                         detail = f"{detail}?{args}"
 
@@ -126,7 +134,9 @@ class HistoryCommand(Command):
                 if status.startswith("client_call_"):
                     status_display = status.split("_")[-1]
 
-                print(f"{time_str:<19} {command_id:<36} {status_display:<16} {entry_type:<10} {detail:<34}")
+                print(
+                    f"{time_str:<19} {command_id:<36} {status_display:<16} {entry_type:<10} {detail:<34}"
+                )
 
             print("")
             print("To view details of a command:")

@@ -6,7 +6,7 @@ from pt1_server.auth import (
     create_session_token,
     cleanup_expired_sessions,
     get_current_time,
-    format_datetime_string
+    format_datetime_string,
 )
 
 router = APIRouter()

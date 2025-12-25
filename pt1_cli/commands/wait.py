@@ -128,7 +128,8 @@ class WaitCommand(Command):
                     elif response_status == 404:
                         print("\n", file=sys.stderr)
                         print(
-                            f"Error: Command ID '{command_id}' not found", file=sys.stderr
+                            f"Error: Command ID '{command_id}' not found",
+                            file=sys.stderr,
                         )
                         return 1
                     else:

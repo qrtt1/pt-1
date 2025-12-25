@@ -9,7 +9,10 @@ from pt1_server.services.providers import get_command_manager
 def _extract_command_id(path_parts: list[str]) -> str:
     if len(path_parts) < 2:
         return ""
-    if path_parts[1] in {"upload_files", "get_result", "list_files"} and len(path_parts) >= 3:
+    if (
+        path_parts[1] in {"upload_files", "get_result", "list_files"}
+        and len(path_parts) >= 3
+    ):
         return path_parts[2]
     if path_parts[1] == "download_file" and len(path_parts) >= 3:
         return path_parts[2]
@@ -64,7 +67,9 @@ def _safe_json_args(path: str, data: dict) -> list[str]:
     return args
 
 
-def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awaitable]], Awaitable]:
+def client_history_middleware_factory() -> (
+    Callable[[Request, Callable[..., Awaitable]], Awaitable]
+):
     async def log_client_calls(request: Request, call_next: Callable[..., Awaitable]):
         path = request.url.path
         cmd_manager = get_command_manager()
@@ -100,14 +105,14 @@ def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awai
             if body:
                 # 先解碼 bytes 為 str，處理非 UTF-8 編碼（如 Windows-1252）
                 try:
-                    body_str = body.decode('utf-8')
+                    body_str = body.decode("utf-8")
                 except UnicodeDecodeError as e:
                     # latin-1 可處理所有單 byte (0x00-0xFF)，不會失敗
-                    body_str = body.decode('latin-1')
+                    body_str = body.decode("latin-1")
                     print(f"[DEBUG] UnicodeDecodeError on {path}: {e}")
                     print(f"[DEBUG] Raw body (first 500 bytes): {body[:500]!r}")
                 # 無論 JSON 是否有效，都確保 body 是 UTF-8 編碼
-                body = body_str.encode('utf-8')
+                body = body_str.encode("utf-8")
                 try:
                     data = json.loads(body_str)
                 except json.JSONDecodeError as e:
@@ -125,7 +130,9 @@ def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awai
                 if command_info:
                     stable_id = command_info.stable_id
                 else:
-                    stable_id = stable_id or data.get("client_id") or data.get("stable_id")
+                    stable_id = (
+                        stable_id or data.get("client_id") or data.get("stable_id")
+                    )
 
             detail_args.extend(_safe_json_args(path, data))
 
@@ -139,14 +146,18 @@ def client_history_middleware_factory() -> Callable[[Request, Callable[..., Awai
         try:
             response = await call_next(request)
         except HTTPException as exc:
-            cmd_manager.log_client_event(stable_id, event_label, exc.status_code, detail)
+            cmd_manager.log_client_event(
+                stable_id, event_label, exc.status_code, detail
+            )
             raise
         except Exception:
             cmd_manager.log_client_event(stable_id, event_label, 500, detail)
             raise
 
         if not (path == "/next_command" and response.status_code == 200):
-            cmd_manager.log_client_event(stable_id, event_label, response.status_code, detail)
+            cmd_manager.log_client_event(
+                stable_id, event_label, response.status_code, detail
+            )
         return response
 
     return log_client_calls

@@ -2,8 +2,19 @@ import os
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from pt1_server.routers import root, clients, commands, client_registry, transcripts, auth
-from pt1_server.auth import get_active_token_with_metadata, get_token_expiry, _default_rotation_seconds
+from pt1_server.routers import (
+    root,
+    clients,
+    commands,
+    client_registry,
+    transcripts,
+    auth,
+)
+from pt1_server.auth import (
+    get_active_token_with_metadata,
+    get_token_expiry,
+    _default_rotation_seconds,
+)
 from pt1_server.services.client_history import client_history_middleware_factory
 
 logger = logging.getLogger("uvicorn")
@@ -12,9 +23,9 @@ logger = logging.getLogger("uvicorn")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("\n" + "="*80)
+    logger.info("\n" + "=" * 80)
     logger.info("                        PT-1 SERVER STARTED")
-    logger.info("="*80)
+    logger.info("=" * 80)
     logger.info("  Server URL  : http://localhost:5566")
     active_token, expiry, metadata = get_active_token_with_metadata()
     expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
@@ -26,7 +37,7 @@ async def lifespan(app: FastAPI):
     else:
         rotation_hint = f"{rotation_seconds} seconds"
     logger.info(f"  Rotation interval (default): {rotation_hint}")
-    logger.info("="*80)
+    logger.info("=" * 80)
 
     yield
 
@@ -46,10 +57,12 @@ app.include_router(auth.router)
 
 app.middleware("http")(client_history_middleware_factory())
 
+
 def run_server():
     """Entry point for pt1-server command"""
     import uvicorn
     import os
+
     host = os.getenv("PT1_HOST", "0.0.0.0")
     port = int(os.getenv("PT1_PORT", "5566"))
     uvicorn.run(app, host=host, port=port)

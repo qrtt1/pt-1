@@ -25,6 +25,7 @@ from fastapi import Header, HTTPException, status
 #
 # =============================================================================
 
+
 def get_current_time() -> datetime:
     """
     Get current time in UTC as naive datetime.
@@ -111,7 +112,9 @@ SESSION_TOKENS_FILE = os.path.join(os.getcwd(), ".session_tokens.json")
 # =============================================================================
 
 # Session token storage (in-memory, loaded from file on startup)
-_session_tokens: Dict[str, Dict] = {}  # session_token -> {refresh_token, expires_at, created_at}
+_session_tokens: Dict[str, Dict] = (
+    {}
+)  # session_token -> {refresh_token, expires_at, created_at}
 _session_tokens_loaded = False
 
 # In-memory state
@@ -119,6 +122,7 @@ _active_token: Optional[str] = None
 _active_expiry: Optional[datetime] = None
 _active_name: str = "rotating-token"
 _active_description: str = "Auto-rotated token (persistent)"
+
 
 # Session token duration (default 1 hour)
 def _session_token_duration_seconds() -> int:
@@ -215,7 +219,9 @@ def _load_session_tokens():
                 print(f"[Auth] Warning: Skipping invalid session token entry: {e}")
                 continue
 
-        print(f"[Auth] Loaded {loaded_count} session token(s) from disk (skipped {expired_count} expired)")
+        print(
+            f"[Auth] Loaded {loaded_count} session token(s) from disk (skipped {expired_count} expired)"
+        )
         _session_tokens_loaded = True
 
     except (json.JSONDecodeError, IOError) as e:
@@ -240,7 +246,9 @@ def _persist_session_tokens():
         print(f"[Auth] Warning: Failed to persist session tokens: {e}")
 
 
-def _parse_token_entry(item: dict) -> Optional[Tuple[str, str, str, Optional[int], Optional[datetime]]]:
+def _parse_token_entry(
+    item: dict,
+) -> Optional[Tuple[str, str, str, Optional[int], Optional[datetime]]]:
     """
     Parse a token entry.
 
@@ -262,13 +270,17 @@ def _parse_token_entry(item: dict) -> Optional[Tuple[str, str, str, Optional[int
         try:
             expires_at = parse_datetime_string(expires_at_raw)
         except ValueError:
-            print(f"[Auth] Warning: Invalid expires_at '{expires_at_raw}' for '{name}', ignoring expiry")
+            print(
+                f"[Auth] Warning: Invalid expires_at '{expires_at_raw}' for '{name}', ignoring expiry"
+            )
             expires_at = None
 
     return token, name, description, rotation_seconds, expires_at
 
 
-def _select_active_token(tokens_data: List[dict]) -> Tuple[str, str, str, datetime, List[dict]]:
+def _select_active_token(
+    tokens_data: List[dict],
+) -> Tuple[str, str, str, datetime, List[dict]]:
     """
     Select an active token from tokens.json with rotation support.
 
@@ -337,7 +349,13 @@ def _select_active_token(tokens_data: List[dict]) -> Tuple[str, str, str, dateti
             new_expiry,
         )
 
-    return active_candidate[0], active_candidate[1], active_candidate[2], active_candidate[3], updated_entries
+    return (
+        active_candidate[0],
+        active_candidate[1],
+        active_candidate[2],
+        active_candidate[3],
+        updated_entries,
+    )
 
 
 def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
@@ -346,12 +364,18 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
 
     now = get_current_time()
     if _active_token and _active_expiry and _active_expiry > now:
-        return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
+        return (
+            _active_token,
+            _active_expiry,
+            {"name": _active_name, "description": _active_description},
+        )
 
     data = _load_tokens_file()
     tokens_data = data.get("tokens", [])
 
-    active_token, name, description, expiry, updated_entries = _select_active_token(tokens_data)
+    active_token, name, description, expiry, updated_entries = _select_active_token(
+        tokens_data
+    )
     data["tokens"] = updated_entries
     _persist_tokens(data)
 
@@ -365,7 +389,11 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
         f"[Auth] Active API token: {_active_token} (expires at UTC {expiry_str}, rotation every {_default_rotation_seconds()}s)"
     )
 
-    return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
+    return (
+        _active_token,
+        _active_expiry,
+        {"name": _active_name, "description": _active_description},
+    )
 
 
 def get_token_info(token: str) -> dict:
@@ -400,12 +428,18 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
 
     now = get_current_time()
     if _active_token and _active_expiry and _active_expiry > now:
-        return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
+        return (
+            _active_token,
+            _active_expiry,
+            {"name": _active_name, "description": _active_description},
+        )
 
     data = _load_tokens_file()
     tokens_data = data.get("tokens", [])
 
-    active_token, name, description, expiry, updated_entries = _select_active_token(tokens_data)
+    active_token, name, description, expiry, updated_entries = _select_active_token(
+        tokens_data
+    )
     data["tokens"] = updated_entries
     _persist_tokens(data)
 
@@ -419,7 +453,11 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
         f"[Auth] Active API token: {_active_token} (expires at UTC {expiry_str}, rotation every {_default_rotation_seconds()}s)"
     )
 
-    return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
+    return (
+        _active_token,
+        _active_expiry,
+        {"name": _active_name, "description": _active_description},
+    )
 
 
 def create_session_token(refresh_token: str) -> Tuple[str, datetime]:
@@ -458,7 +496,9 @@ def create_session_token(refresh_token: str) -> Tuple[str, datetime]:
     # Persist to disk
     _persist_session_tokens()
 
-    print(f"[Auth] Created session token {session_token[:8]}... (expires at {format_datetime_string(expires_at)})")
+    print(
+        f"[Auth] Created session token {session_token[:8]}... (expires at {format_datetime_string(expires_at)})"
+    )
 
     return session_token, expires_at
 
@@ -498,8 +538,7 @@ def cleanup_expired_sessions():
 
     now = get_current_time()
     expired = [
-        token for token, data in _session_tokens.items()
-        if data["expires_at"] <= now
+        token for token, data in _session_tokens.items() if data["expires_at"] <= now
     ]
     for token in expired:
         del _session_tokens[token]
@@ -510,7 +549,8 @@ def cleanup_expired_sessions():
 
 
 async def verify_refresh_token(
-    x_api_token: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
+    x_api_token: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
 ) -> str:
     """
     Validate refresh token (PT1_API_TOKEN) for token exchange endpoint only.
@@ -545,7 +585,8 @@ async def verify_refresh_token(
 
 
 async def verify_token(
-    x_api_token: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
+    x_api_token: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
 ) -> str:
     """
     Validate session token (FastAPI dependency).

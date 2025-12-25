@@ -20,7 +20,10 @@ class TerminateCommand(Command):
             print("", file=sys.stderr)
             print("Description:", file=sys.stderr)
             print("  Send graceful termination signal to a client", file=sys.stderr)
-            print("  The client will shutdown gracefully after completing current task", file=sys.stderr)
+            print(
+                "  The client will shutdown gracefully after completing current task",
+                file=sys.stderr,
+            )
             print("", file=sys.stderr)
             print("Example:", file=sys.stderr)
             print("  pt1 terminate my-dev-pc", file=sys.stderr)
@@ -78,7 +81,10 @@ class TerminateCommand(Command):
                 # 尋找目標 client
                 target_client = None
                 for c in clients:
-                    if c.get("client_id") == client_id or c.get("stable_id") == client_id:
+                    if (
+                        c.get("client_id") == client_id
+                        or c.get("stable_id") == client_id
+                    ):
                         target_client = c
                         break
 
@@ -90,10 +96,14 @@ class TerminateCommand(Command):
                 if target_client.get("terminated"):
                     terminated_status = "[TERMINATED]"
                 else:
-                    terminated_status = f"[{target_client.get('status', 'unknown').upper()}]"
+                    terminated_status = (
+                        f"[{target_client.get('status', 'unknown').upper()}]"
+                    )
 
                 client_status = target_client.get("status", "unknown")
-                print(f"  Current status: {terminated_status} (last seen {attempt * 2 + 2}s ago)")
+                print(
+                    f"  Current status: {terminated_status} (last seen {attempt * 2 + 2}s ago)"
+                )
 
                 if client_status == "offline":
                     print(f"✓ Client '{client_id}' is now offline")
@@ -121,9 +131,15 @@ class TerminateCommand(Command):
                 print(f"  - Client '{client_id}' does not exist", file=sys.stderr)
                 print("  - Client has already been terminated", file=sys.stderr)
                 print("", file=sys.stderr)
-                print("Tip: Run 'pt1 list-clients' to see available clients", file=sys.stderr)
+                print(
+                    "Tip: Run 'pt1 list-clients' to see available clients",
+                    file=sys.stderr,
+                )
             elif "401" in error_msg or "403" in error_msg:
-                print("Authentication failed. Please check your API token.", file=sys.stderr)
+                print(
+                    "Authentication failed. Please check your API token.",
+                    file=sys.stderr,
+                )
             else:
                 print("Possible reasons:", file=sys.stderr)
                 print("  - Server is not accessible", file=sys.stderr)

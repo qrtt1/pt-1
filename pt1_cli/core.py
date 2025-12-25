@@ -60,25 +60,28 @@ class PT1Config:
             return
 
         try:
-            with open(self.session_cache_path, 'r') as f:
+            with open(self.session_cache_path, "r") as f:
                 cache = json.load(f)
 
             # Verify cache is for current server and refresh token
-            if cache.get('server_url') != self.server_url or cache.get('refresh_token') != self.api_token:
+            if (
+                cache.get("server_url") != self.server_url
+                or cache.get("refresh_token") != self.api_token
+            ):
                 # Cache is for different configuration, ignore it
                 return
 
-            expires_str = cache.get('expires_at')
+            expires_str = cache.get("expires_at")
             if not expires_str:
                 return
 
             # Parse expiry time
-            expires_at = datetime.fromisoformat(expires_str.rstrip('Z'))
+            expires_at = datetime.fromisoformat(expires_str.rstrip("Z"))
 
             # Check if token is still valid (with 60 seconds buffer)
             now = datetime.utcnow()
             if expires_at > now:
-                self.session_token = cache.get('session_token')
+                self.session_token = cache.get("session_token")
                 self.session_expires_at = expires_at
                 # Don't print message here to avoid noise in normal operations
 
@@ -94,17 +97,17 @@ class PT1Config:
             return
 
         cache = {
-            'server_url': self.server_url,
-            'refresh_token': self.api_token,
-            'session_token': self.session_token,
-            'expires_at': self.session_expires_at.isoformat() + 'Z'
+            "server_url": self.server_url,
+            "refresh_token": self.api_token,
+            "session_token": self.session_token,
+            "expires_at": self.session_expires_at.isoformat() + "Z",
         }
 
         # Ensure directory exists
         self.session_cache_path.parent.mkdir(parents=True, exist_ok=True)
 
         try:
-            with open(self.session_cache_path, 'w') as f:
+            with open(self.session_cache_path, "w") as f:
                 json.dump(cache, f)
             # Set restrictive permissions (owner read/write only)
             os.chmod(self.session_cache_path, 0o600)
@@ -173,7 +176,11 @@ class PT1Client:
         from datetime import datetime, timedelta
 
         # Check if we already have a valid session token (with 60 seconds buffer)
-        if not force_refresh and self.config.session_token and self.config.session_expires_at:
+        if (
+            not force_refresh
+            and self.config.session_token
+            and self.config.session_expires_at
+        ):
             buffer_time = self.config.session_expires_at - timedelta(seconds=60)
             if datetime.utcnow() < buffer_time:
                 return
@@ -182,8 +189,7 @@ class PT1Client:
         try:
             headers = self.config.get_headers(use_refresh_token=True)
             response = requests.post(
-                f"{self.base_url}/auth/token/exchange",
-                headers=headers
+                f"{self.base_url}/auth/token/exchange", headers=headers
             )
             response.raise_for_status()
             data = response.json()
@@ -200,7 +206,9 @@ class PT1Client:
 
         except requests.HTTPError as e:
             if e.response.status_code == 401:
-                raise Exception("Refresh token (PT1_API_TOKEN) 無效或已過期，請檢查設定")
+                raise Exception(
+                    "Refresh token (PT1_API_TOKEN) 無效或已過期，請檢查設定"
+                )
             raise Exception(f"Token exchange 失敗: {e}")
 
     def get_fresh_session_token(self) -> str:
@@ -285,9 +293,7 @@ class PT1Client:
         """
         self._ensure_session_token()
         headers = self.config.get_headers()
-        response = requests.get(
-            f"{self.base_url}/client_registry", headers=headers
-        )
+        response = requests.get(f"{self.base_url}/client_registry", headers=headers)
         response.raise_for_status()
         return response.json()
 
@@ -359,12 +365,14 @@ class PT1Client:
         response = requests.get(
             f"{self.base_url}/download_file/{command_id}/{filename}",
             headers=headers,
-            stream=True
+            stream=True,
         )
         response.raise_for_status()
         return response
 
-    def list_transcripts(self, stable_id: Optional[str] = None, limit: int = 50) -> dict:
+    def list_transcripts(
+        self, stable_id: Optional[str] = None, limit: int = 50
+    ) -> dict:
         """
         列出 agent 執行記錄
 
@@ -409,7 +417,7 @@ class PT1Client:
         response = requests.get(
             f"{self.base_url}/agent_transcript/{transcript_id}",
             headers=headers,
-            params={"format": format}
+            params={"format": format},
         )
         response.raise_for_status()
 
@@ -435,8 +443,7 @@ class PT1Client:
         self._ensure_session_token()
         headers = self.config.get_headers()
         response = requests.post(
-            f"{self.base_url}/terminate_client/{client_id}",
-            headers=headers
+            f"{self.base_url}/terminate_client/{client_id}", headers=headers
         )
         response.raise_for_status()
         return response.json()
