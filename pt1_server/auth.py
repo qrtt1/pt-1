@@ -9,28 +9,71 @@ from fastapi import Header, HTTPException, status
 # =============================================================================
 # Datetime utilities - centralized datetime operations
 # =============================================================================
+#
+# IMPORTANT: All datetime objects in this module are NAIVE datetimes in UTC.
+#
+# Design decision:
+# - We use naive datetime (no tzinfo) for simplicity
+# - All times are assumed to be in UTC timezone
+# - This works well for PT-1 as it's an internal tool with no multi-timezone needs
+# - When serializing to JSON/strings, we add "Z" suffix to indicate UTC
+#
+# Benefits:
+# - Simple and consistent across the codebase
+# - All datetime operations are centralized in these utility functions
+# - Easy to migrate to timezone-aware if needed in the future
+#
+# =============================================================================
 
 def get_current_time() -> datetime:
-    """Get current time (UTC, naive datetime)."""
+    """
+    Get current time in UTC as naive datetime.
+
+    Returns:
+        datetime: Current UTC time (naive, no tzinfo)
+    """
     return datetime.utcnow()
 
 
 def parse_datetime_string(dt_string: str) -> datetime:
     """
-    Parse ISO format datetime string to naive datetime.
+    Parse ISO format datetime string to naive datetime in UTC.
 
-    Handles "Z" suffix and timezone info, returns naive datetime in UTC.
+    Handles "Z" suffix and timezone info, returns naive datetime.
+
+    Args:
+        dt_string: ISO format string like "2025-12-25T12:00:00Z"
+
+    Returns:
+        datetime: Naive datetime in UTC (tzinfo removed)
     """
     return datetime.fromisoformat(dt_string.replace("Z", "+00:00")).replace(tzinfo=None)
 
 
 def format_datetime_string(dt: datetime) -> str:
-    """Format naive datetime to ISO string with Z suffix."""
+    """
+    Format naive datetime (UTC) to ISO string with Z suffix.
+
+    Args:
+        dt: Naive datetime (assumed to be in UTC)
+
+    Returns:
+        str: ISO format string like "2025-12-25T12:00:00Z"
+    """
     return dt.isoformat() + "Z"
 
 
 def add_seconds(dt: datetime, seconds: int) -> datetime:
-    """Add seconds to a datetime."""
+    """
+    Add seconds to a datetime.
+
+    Args:
+        dt: Naive datetime (assumed to be in UTC)
+        seconds: Number of seconds to add
+
+    Returns:
+        datetime: New datetime with seconds added
+    """
     return dt + timedelta(seconds=seconds)
 
 

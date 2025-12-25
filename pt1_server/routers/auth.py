@@ -1,5 +1,13 @@
 from fastapi import APIRouter, Depends
-from pt1_server.auth import verify_token, verify_refresh_token, get_token_info, create_session_token, cleanup_expired_sessions
+from pt1_server.auth import (
+    verify_token,
+    verify_refresh_token,
+    get_token_info,
+    create_session_token,
+    cleanup_expired_sessions,
+    get_current_time,
+    format_datetime_string
+)
 
 router = APIRouter()
 
@@ -19,9 +27,9 @@ def exchange_token(refresh_token: str = Depends(verify_refresh_token)):
 
     return {
         "session_token": session_token,
-        "expires_at": expires_at.isoformat() + "Z",
+        "expires_at": format_datetime_string(expires_at),
         "token_type": "Bearer",
-        "expires_in": int((expires_at - __import__('datetime').datetime.utcnow()).total_seconds()),
+        "expires_in": int((expires_at - get_current_time()).total_seconds()),
     }
 
 
