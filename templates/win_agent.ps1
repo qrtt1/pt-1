@@ -5,7 +5,7 @@ if (-not $serverUrl) {{
     $serverUrl = "{base_url}"
 }}
 
-# API Token for authentication
+# Session Token for authentication (short-lived)
 $apiToken = "{api_token}"
 
 # Get environment info for stable identification

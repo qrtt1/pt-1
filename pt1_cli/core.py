@@ -39,15 +39,30 @@ class PT1Config:
         load_dotenv(self.env_path, override=True)
 
         self.server_url = os.getenv("PT1_SERVER_URL")
-        self.api_token = os.getenv("PT1_API_TOKEN")
+        self.api_token = os.getenv("PT1_API_TOKEN")  # This is now the refresh token
+        self.session_token = None  # In-memory session token
+        self.session_expires_at = None  # Session expiry time
 
     def is_configured(self) -> bool:
         """檢查是否已設定完整的連線資訊"""
         return bool(self.server_url and self.api_token)
 
-    def get_headers(self) -> dict:
-        """取得 HTTP headers（包含 API token）"""
-        return {"X-API-Token": self.api_token, "Content-Type": "application/json"}
+    def get_headers(self, use_refresh_token: bool = False) -> dict:
+        """
+        取得 HTTP headers
+
+        Args:
+            use_refresh_token: 是否使用 refresh token（用於 token exchange）
+
+        Returns:
+            dict: HTTP headers
+        """
+        if use_refresh_token:
+            token = self.api_token
+        else:
+            token = self.session_token
+
+        return {"X-API-Token": token, "Content-Type": "application/json"}
 
     def show_config_help(self):
         """顯示設定說明"""
@@ -83,11 +98,42 @@ class PT1Client:
         """
         self.config = config
         self.base_url = config.server_url.rstrip("/")
-        self.headers = config.get_headers()
+
+    def _ensure_session_token(self):
+        """確保有有效的 session token，必要時進行 token exchange"""
+        from datetime import datetime
+
+        # Check if we already have a valid session token
+        if self.config.session_token and self.config.session_expires_at:
+            # Add 60 seconds buffer to avoid edge cases
+            if datetime.utcnow() < self.config.session_expires_at.replace(tzinfo=None):
+                return
+
+        # Need to exchange for a new session token
+        try:
+            headers = self.config.get_headers(use_refresh_token=True)
+            response = requests.post(
+                f"{self.base_url}/auth/token/exchange",
+                headers=headers
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            self.config.session_token = data["session_token"]
+            # Parse expires_at
+            expires_str = data["expires_at"].rstrip("Z")
+            self.config.session_expires_at = datetime.fromisoformat(expires_str)
+
+            print(f"✓ Session token obtained (expires in {data['expires_in']} seconds)")
+
+        except requests.HTTPError as e:
+            if e.response.status_code == 401:
+                raise Exception("Refresh token (PT1_API_TOKEN) 無效或已過期，請檢查設定")
+            raise Exception(f"Token exchange 失敗: {e}")
 
     def verify_auth(self) -> dict:
         """
-        驗證 API token 是否有效
+        驗證 session token 是否有效
 
         Returns:
             dict: API 回應
@@ -95,7 +141,9 @@ class PT1Client:
         Raises:
             requests.HTTPError: 當請求失敗時
         """
-        response = requests.post(f"{self.base_url}/auth/verify", headers=self.headers)
+        self._ensure_session_token()
+        headers = self.config.get_headers()
+        response = requests.post(f"{self.base_url}/auth/verify", headers=headers)
         response.raise_for_status()
         return response.json()
 
@@ -113,9 +161,11 @@ class PT1Client:
         Raises:
             requests.HTTPError: 當請求失敗時
         """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
         response = requests.post(
             f"{self.base_url}/send_command",
-            headers=self.headers,
+            headers=headers,
             json={"client_id": client_id, "command": command},
         )
         response.raise_for_status()
@@ -134,8 +184,10 @@ class PT1Client:
         Raises:
             requests.HTTPError: 當請求失敗時
         """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
         response = requests.get(
-            f"{self.base_url}/get_result/{command_id}", headers=self.headers
+            f"{self.base_url}/get_result/{command_id}", headers=headers
         )
         response.raise_for_status()
         return response.json()
@@ -150,8 +202,10 @@ class PT1Client:
         Raises:
             requests.HTTPError: 當請求失敗時
         """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
         response = requests.get(
-            f"{self.base_url}/client_registry", headers=self.headers
+            f"{self.base_url}/client_registry", headers=headers
         )
         response.raise_for_status()
         return response.json()
@@ -172,12 +226,14 @@ class PT1Client:
         Raises:
             requests.HTTPError: 當請求失敗時
         """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
         params = {"limit": limit}
         if stable_id:
             params["stable_id"] = stable_id
 
         response = requests.get(
-            f"{self.base_url}/command_history", headers=self.headers, params=params
+            f"{self.base_url}/command_history", headers=headers, params=params
         )
         response.raise_for_status()
         return response.json()
@@ -195,9 +251,11 @@ class PT1Client:
         Raises:
             requests.HTTPError: 當請求失敗時
         """
+        self._ensure_session_token()
+        headers = self.config.get_headers()
         response = requests.post(
             f"{self.base_url}/terminate_client/{client_id}",
-            headers=self.headers
+            headers=headers
         )
         response.raise_for_status()
         return response.json()

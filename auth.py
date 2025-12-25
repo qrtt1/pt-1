@@ -2,17 +2,33 @@ import json
 import os
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 from fastapi import Header, HTTPException, status
 
 # Path to tokens file (persistent source of truth)
 TOKENS_FILE = os.path.join(os.path.dirname(__file__), "tokens.json")
+
+# Session token storage (in-memory)
+_session_tokens: Dict[str, Dict] = {}  # session_token -> {refresh_token, expires_at, created_at}
 
 # In-memory state
 _active_token: Optional[str] = None
 _active_expiry: Optional[datetime] = None
 _active_name: str = "rotating-token"
 _active_description: str = "Auto-rotated token (persistent)"
+
+# Session token duration (default 1 hour)
+def _session_token_duration_seconds() -> int:
+    default_seconds = 3600  # 1 hour
+    value = os.getenv("PT1_SESSION_TOKEN_DURATION_SECONDS")
+    if not value:
+        return default_seconds
+    try:
+        parsed = int(value)
+        return parsed if parsed > 0 else default_seconds
+    except ValueError:
+        return default_seconds
+
 
 # Default rotation interval (seconds) if not specified on token
 def _default_rotation_seconds() -> int:
@@ -233,11 +249,84 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
 
 
-async def verify_token(
+def create_session_token(refresh_token: str) -> Tuple[str, datetime]:
+    """
+    Create a new session token from a refresh token.
+
+    Args:
+        refresh_token: The refresh token (PT1_API_TOKEN)
+
+    Returns:
+        Tuple of (session_token, expires_at)
+    """
+    # Verify refresh token is valid
+    active_token, _, _ = get_active_token_with_metadata()
+    if refresh_token != active_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="無效的 refresh token",
+        )
+
+    # Generate session token
+    session_token = str(uuid.uuid4())
+    expires_at = datetime.utcnow() + timedelta(seconds=_session_token_duration_seconds())
+
+    # Store session token
+    _session_tokens[session_token] = {
+        "refresh_token": refresh_token,
+        "expires_at": expires_at,
+        "created_at": datetime.utcnow(),
+    }
+
+    print(f"[Auth] Created session token {session_token[:8]}... (expires at {expires_at.isoformat()}Z)")
+
+    return session_token, expires_at
+
+
+def verify_session_token(session_token: str) -> bool:
+    """
+    Verify if a session token is valid and not expired.
+
+    Args:
+        session_token: The session token to verify
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if session_token not in _session_tokens:
+        return False
+
+    token_data = _session_tokens[session_token]
+    now = datetime.utcnow()
+
+    # Check if expired
+    if token_data["expires_at"] <= now:
+        # Clean up expired token
+        del _session_tokens[session_token]
+        return False
+
+    return True
+
+
+def cleanup_expired_sessions():
+    """Remove expired session tokens from memory."""
+    now = datetime.utcnow()
+    expired = [
+        token for token, data in _session_tokens.items()
+        if data["expires_at"] <= now
+    ]
+    for token in expired:
+        del _session_tokens[token]
+
+    if expired:
+        print(f"[Auth] Cleaned up {len(expired)} expired session token(s)")
+
+
+async def verify_refresh_token(
     x_api_token: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
 ) -> str:
     """
-    Validate API token (FastAPI dependency).
+    Validate refresh token (PT1_API_TOKEN) for token exchange endpoint only.
 
     Supported headers:
     1. X-API-Token
@@ -253,7 +342,7 @@ async def verify_token(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="未提供 API token",
+            detail="未提供 refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -261,7 +350,44 @@ async def verify_token(
     if token != active_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="無效的 API token",
+            detail="無效的 refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return token
+
+
+async def verify_token(
+    x_api_token: Optional[str] = Header(None), authorization: Optional[str] = Header(None)
+) -> str:
+    """
+    Validate session token (FastAPI dependency).
+
+    This now ONLY accepts session tokens, not refresh tokens.
+
+    Supported headers:
+    1. X-API-Token
+    2. Authorization: Bearer <token>
+    """
+    token = None
+
+    if x_api_token:
+        token = x_api_token
+    elif authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]  # Remove "Bearer " prefix
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供 session token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Verify session token
+    if not verify_session_token(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session token 無效或已過期，請使用 refresh token 重新取得",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
