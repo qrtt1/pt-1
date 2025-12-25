@@ -36,16 +36,81 @@ class PT1Config:
     def __init__(self):
         """從 ~/.pt-1/.env 載入設定"""
         self.env_path = Path.home() / ".pt-1" / ".env"
+        self.session_cache_path = Path.home() / ".pt-1" / ".session_cache"
         load_dotenv(self.env_path, override=True)
 
         self.server_url = os.getenv("PT1_SERVER_URL")
         self.api_token = os.getenv("PT1_API_TOKEN")  # This is now the refresh token
-        self.session_token = None  # In-memory session token
+        self.session_token = None  # Session token (loaded from cache or exchanged)
         self.session_expires_at = None  # Session expiry time
+
+        # Load cached session token if available
+        self._load_session_cache()
 
     def is_configured(self) -> bool:
         """檢查是否已設定完整的連線資訊"""
         return bool(self.server_url and self.api_token)
+
+    def _load_session_cache(self):
+        """從檔案載入 cached session token"""
+        import json
+        from datetime import datetime
+
+        if not self.session_cache_path.exists():
+            return
+
+        try:
+            with open(self.session_cache_path, 'r') as f:
+                cache = json.load(f)
+
+            # Verify cache is for current server and refresh token
+            if cache.get('server_url') != self.server_url or cache.get('refresh_token') != self.api_token:
+                # Cache is for different configuration, ignore it
+                return
+
+            expires_str = cache.get('expires_at')
+            if not expires_str:
+                return
+
+            # Parse expiry time
+            expires_at = datetime.fromisoformat(expires_str.rstrip('Z'))
+
+            # Check if token is still valid (with 60 seconds buffer)
+            now = datetime.utcnow()
+            if expires_at > now:
+                self.session_token = cache.get('session_token')
+                self.session_expires_at = expires_at
+                # Don't print message here to avoid noise in normal operations
+
+        except (json.JSONDecodeError, ValueError, KeyError):
+            # Invalid cache file, ignore it
+            pass
+
+    def _save_session_cache(self):
+        """儲存 session token 到檔案"""
+        import json
+
+        if not self.session_token or not self.session_expires_at:
+            return
+
+        cache = {
+            'server_url': self.server_url,
+            'refresh_token': self.api_token,
+            'session_token': self.session_token,
+            'expires_at': self.session_expires_at.isoformat() + 'Z'
+        }
+
+        # Ensure directory exists
+        self.session_cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with open(self.session_cache_path, 'w') as f:
+                json.dump(cache, f)
+            # Set restrictive permissions (owner read/write only)
+            os.chmod(self.session_cache_path, 0o600)
+        except Exception:
+            # Silently fail if we can't save cache
+            pass
 
     def get_headers(self, use_refresh_token: bool = False) -> dict:
         """
@@ -101,12 +166,12 @@ class PT1Client:
 
     def _ensure_session_token(self):
         """確保有有效的 session token，必要時進行 token exchange"""
-        from datetime import datetime
+        from datetime import datetime, timedelta
 
-        # Check if we already have a valid session token
+        # Check if we already have a valid session token (with 60 seconds buffer)
         if self.config.session_token and self.config.session_expires_at:
-            # Add 60 seconds buffer to avoid edge cases
-            if datetime.utcnow() < self.config.session_expires_at.replace(tzinfo=None):
+            buffer_time = self.config.session_expires_at - timedelta(seconds=60)
+            if datetime.utcnow() < buffer_time:
                 return
 
         # Need to exchange for a new session token
@@ -123,6 +188,9 @@ class PT1Client:
             # Parse expires_at
             expires_str = data["expires_at"].rstrip("Z")
             self.config.session_expires_at = datetime.fromisoformat(expires_str)
+
+            # Save to cache
+            self.config._save_session_cache()
 
             print(f"✓ Session token obtained (expires in {data['expires_in']} seconds)")
 
