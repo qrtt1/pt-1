@@ -8,6 +8,118 @@
 2. CLI 已安裝並設定完成（`~/.pt-1/.env` 包含正確的 `PT1_SERVER_URL` 和 `PT1_API_TOKEN`）
 3. 至少有一個 Windows client 已註冊並在線
 
+---
+
+## Baseline 檢查：建立測試專用 Client
+
+**重要**: 在執行任何測試案例前，請先確保有一個專門用於測試的 client。
+
+### 步驟 1: 檢查是否存在 e2e-tests client
+
+```bash
+# 查詢所有 clients
+pt1 list-clients
+
+# 檢查是否有 client_id 為 "e2e-tests" 的 client
+pt1 list-clients | grep "e2e-tests"
+```
+
+### 步驟 2: 如果不存在，建立測試 client
+
+如果上述命令沒有找到 `e2e-tests` client，請執行以下步驟建立：
+
+```bash
+# 1. 產生安裝命令
+pt1 quickstart e2e-tests
+
+# 2. 複製顯示的 PowerShell oneliner
+# 輸出類似：
+# iwr "https://server/win_agent.ps1?client_id=e2e-tests" -UseBasicParsing -Headers @{"X-API-Token"="..."} | iex
+
+# 3. 在 Windows 測試機器上執行該命令（PowerShell）
+# 注意：需要以管理員權限執行 PowerShell
+```
+
+### 步驟 3: 驗證 client 已上線
+
+```bash
+# 等待約 5-10 秒後檢查
+pt1 list-clients | grep "e2e-tests"
+
+# 預期輸出：
+# e2e-tests            [ONLINE]        <HOSTNAME>           <USERNAME>      <TIMESTAMP>
+```
+
+### 步驟 4: 執行基本健康檢查
+
+```bash
+# 發送簡單測試命令
+pt1 send e2e-tests "Write-Output 'Test connection successful'"
+
+# 等待結果
+pt1 wait <command_id>
+
+# 預期輸出應包含：
+# Output:
+# --------------------------------------------------------------------------------
+# Test connection successful
+# --------------------------------------------------------------------------------
+```
+
+### 如果 client 建立失敗
+
+**問題排查**：
+
+1. **Server 無法連線**
+   ```bash
+   # 檢查 server 狀態
+   pt1 auth
+
+   # 如果失敗，檢查設定
+   cat ~/.pt-1/.env
+   ```
+
+2. **PowerShell 腳本執行被阻擋**
+   - 在 Windows 上檢查執行原則：
+   ```powershell
+   Get-ExecutionPolicy
+
+   # 如果是 Restricted，暫時允許：
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+   ```
+
+3. **防火牆問題**
+   - 確認 Windows 機器可以連接到 server URL
+   - 測試連線：
+   ```powershell
+   Test-NetConnection -ComputerName <server_hostname> -Port 5566
+   ```
+
+4. **Token 過期**
+   ```bash
+   # 清除 session cache 並重新驗證
+   rm ~/.pt-1/.session_cache
+   pt1 auth
+
+   # 重新產生 quickstart 命令
+   pt1 quickstart e2e-tests
+   ```
+
+### Baseline 完成確認
+
+當你看到以下輸出，表示 baseline 已經準備完成：
+
+```bash
+$ pt1 list-clients | grep "e2e-tests"
+e2e-tests            [ONLINE]        CC827F8BC7AA         testuser        13:45:23 (5s ago)
+```
+
+現在可以開始執行以下的測試案例。
+
+**注意**: 後續所有測試案例中的 `<client_id>` 都應該替換為 `e2e-tests`。
+
+---
+
 ## 測試案例 1: 系統資訊收集
 
 **目的**: 收集遠端 Windows 機器的基本系統資訊
@@ -357,14 +469,20 @@ echo "=== PT-1 CLI 自動化測試 ==="
 echo "1. 驗證連線..."
 pt1 auth || exit 1
 
-# 2. 取得第一個 online client
-echo "2. 取得 client ID..."
-CLIENT_ID=$(pt1 list-clients | grep ONLINE | head -1 | awk '{print $1}')
-if [ -z "$CLIENT_ID" ]; then
-    echo "錯誤: 沒有 online 的 client"
+# 2. 檢查測試專用 client (e2e-tests)
+echo "2. 檢查測試 client..."
+CLIENT_ID="e2e-tests"
+if ! pt1 list-clients | grep -q "$CLIENT_ID.*ONLINE"; then
+    echo "錯誤: 測試 client '$CLIENT_ID' 不存在或未上線"
+    echo ""
+    echo "請先執行 Baseline 檢查建立測試 client："
+    echo "  1. pt1 quickstart e2e-tests"
+    echo "  2. 在 Windows 機器執行產生的 PowerShell 命令"
+    echo "  3. 確認 client 上線：pt1 list-clients | grep e2e-tests"
+    echo ""
     exit 1
 fi
-echo "使用 client: $CLIENT_ID"
+echo "✓ 使用測試 client: $CLIENT_ID"
 
 # 3. 測試基本命令
 echo "3. 測試基本命令..."
