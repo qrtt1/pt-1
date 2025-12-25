@@ -70,7 +70,7 @@ PT-1 使用雙層 token 架構提升安全性：
 ### 3. 啟動 Server
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 5566
+uvicorn pt1_server.main:app --host 0.0.0.0 --port 5566
 ```
 
 啟動參數說明：
@@ -146,7 +146,7 @@ sudo systemctl enable powershell-executor.service
 **直接執行（適合開發測試）**
 ```bash
 # 在專案目錄下
-uvicorn main:app --host 0.0.0.0 --port 5566 --reload
+uvicorn pt1_server.main:app --host 0.0.0.0 --port 5566 --reload
 ```
 
 **使用 screen（適合臨時部署）**
@@ -155,7 +155,7 @@ uvicorn main:app --host 0.0.0.0 --port 5566 --reload
 screen -S pt1
 
 # 執行 server
-uvicorn main:app --host 0.0.0.0 --port 5566
+uvicorn pt1_server.main:app --host 0.0.0.0 --port 5566
 
 # 離開 session (Ctrl+A, D)
 # 重新連接：screen -r pt1
@@ -304,13 +304,13 @@ curl -H "X-API-Token: your-token" \
 ### 效能調校
 ```bash
 # 使用多個 worker processes
-uvicorn main:app \
+uvicorn pt1_server.main:app \
   --host 0.0.0.0 \
   --port 5566 \
   --workers 4
 
 # 使用 Gunicorn + Uvicorn workers
-gunicorn main:app \
+gunicorn pt1_server.main:app \
   --workers 4 \
   --worker-class uvicorn.workers.UvicornWorker \
   --bind 0.0.0.0:5566
@@ -339,23 +339,39 @@ gunicorn main:app \
 
 ```
 pt-1/
-├── main.py                    # FastAPI 應用程式入口
+├── pt1_cli/                  # CLI Component
+│   ├── cli.py                # CLI 命令分派器
+│   ├── core.py               # 核心功能與設定
+│   └── commands/             # 各命令實作
+├── pt1_server/               # Server Component
+│   ├── main.py               # FastAPI 應用程式入口
+│   ├── auth.py               # 認證與 token 管理
+│   ├── routers/              # API 路由模組
+│   │   ├── commands.py       # 命令管理 API
+│   │   ├── clients.py        # 客戶端管理 API
+│   │   ├── client_registry.py # Client 註冊與狀態
+│   │   ├── transcripts.py    # Transcript 管理 API
+│   │   └── auth.py           # 認證邏輯
+│   ├── services/             # 業務邏輯服務
+│   │   ├── command_manager.py # 命令管理核心
+│   │   ├── client_history.py  # 客戶端歷史記錄
+│   │   ├── transcript_manager.py # Transcript 管理
+│   │   └── providers.py       # 依賴注入
+│   └── templates/            # PowerShell 客戶端腳本
+│       ├── client_install.ps1 # Client 執行單元
+│       ├── win_agent.ps1      # 生產環境 agent
+│       └── ai_guide.md        # AI 使用指南範本
+├── setup.py                  # Python package 設定
 ├── tokens.json               # API token 設定（不應 commit）
-├── routers/                  # API 路由模組
-│   ├── commands.py           # 命令管理 API
-│   ├── clients.py            # 客戶端管理 API
-│   ├── client_registry.py    # Client 註冊與狀態
-│   ├── dev_logs.py           # 開發日誌 API
-│   └── auth.py               # 驗證邏輯
-├── services/                 # 業務邏輯服務
-│   ├── command_manager.py    # 命令管理核心
-│   └── providers.py          # 依賴注入
-├── templates/                # PowerShell 客戶端腳本
-│   ├── client_install.ps1    # Client 執行單元
-│   ├── win_agent.ps1         # 生產環境 agent
-│   └── ai_guide.md           # AI 使用指南範本
 └── uploads/                  # 檔案上傳目錄
 ```
+
+專案採用模組化架構，清楚區分 CLI 與 Server 兩個主要 components：
+
+- **pt1_cli**: 客戶端命令列工具，提供使用者介面
+- **pt1_server**: 伺服器端 API，處理命令執行與 client 管理
+
+兩個 components 透過 HTTP API 進行通訊。
 
 ## Technical Details
 

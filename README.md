@@ -183,16 +183,27 @@ pt1 send pc "Get-NetIPAddress | ConvertTo-Json"
 
 ```
 pt-1/
-├── pt1_cli/              # CLI 主程式
+├── pt1_cli/              # CLI Component
 │   ├── cli.py            # 命令分派器
 │   ├── core.py           # 核心功能與設定
 │   └── commands/         # 各命令實作
-├── main.py               # FastAPI server 入口
-├── routers/              # API 路由
-├── services/             # 業務邏輯
-├── templates/            # PowerShell client 腳本
-└── setup.py              # Python package 設定
+├── pt1_server/           # Server Component
+│   ├── main.py           # FastAPI server 入口
+│   ├── auth.py           # 認證與 token 管理
+│   ├── routers/          # API 路由
+│   ├── services/         # 業務邏輯
+│   └── templates/        # PowerShell client 腳本
+├── setup.py              # Python package 設定
+├── tokens.json           # API tokens (需自行建立)
+└── uploads/              # 檔案上傳目錄
 ```
+
+專案採用模組化架構，清楚區分 CLI 與 Server 兩個主要 components：
+
+- **pt1_cli**: 客戶端命令列工具，提供使用者介面
+- **pt1_server**: 伺服器端 API，處理命令執行與 client 管理
+
+兩個 components 可獨立開發與部署，透過 HTTP API 進行通訊。
 
 ## 文件
 
