@@ -36,10 +36,14 @@ class CommandInfo(BaseModel):
 
 class CommandManager:
     """統一管理所有 command 相關操作"""
-    
+
     def __init__(self):
         self.command_history: Dict[str, CommandInfo] = {}
         # 移除 command_queues，所有狀態都透過 command_history 管理
+
+    def _generate_short_id(self) -> str:
+        """產生簡短的 command ID（使用 UUID 前 8 字元）"""
+        return str(uuid.uuid4())[:8]
     
     def get_pending_commands_count(self, stable_id: str) -> int:
         """取得 client 的 pending/executing 命令數量"""
@@ -52,8 +56,8 @@ class CommandManager:
     
     def queue_command(self, stable_id: str, command: str) -> str:
         """排隊新的 command（允許多個並行命令）"""
-        # 建立新的 command
-        command_id = str(uuid.uuid4())
+        # 建立新的 command（使用簡短 ID）
+        command_id = self._generate_short_id()
         created_at = time.time()
         
         command_info = CommandInfo(
