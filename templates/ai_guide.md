@@ -83,7 +83,7 @@ X-API-Token: your-session-token-here
 ```json
 {{
   "status": "Command queued for target_machine_name",
-  "command_id": "uuid-here",
+  "command_id": "5b4e01bc",
   "timestamp": 1234567890.123
 }}
 ```
@@ -97,7 +97,7 @@ X-API-Token: your-session-token-here
 **Response**:
 ```json
 {{
-  "command_id": "uuid-here",
+  "command_id": "5b4e01bc",
   "stable_id": "target_machine_name", 
   "command": "Get-Process | Select-Object -First 5",
   "created_at": 1234567890.123,
@@ -258,7 +258,7 @@ X-API-Token: your-session-token-here
 ### Example Error Response
 ```json
 {{
-  "command_id": "uuid-here",
+  "command_id": "7a3b9f2e",
   "status": "failed",
   "result": "Get-InvalidCommand : The term 'Get-InvalidCommand' is not recognized...",
   "result_type": "text"

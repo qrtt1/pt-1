@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Command IDs shortened from 36 to 8 characters**
+  - Changed from full UUID format (e.g., `018302b1-2d28-40fd-a8ef-f7e163009e1e`)
+  - To short format using first 8 hex characters (e.g., `5b4e01bc`)
+  - Applies to command IDs and client event IDs
+  - 78% reduction in length for better CLI readability
+  - Auth tokens remain full UUID for security
+
+### Added
+- **Session token persistence across server restarts**
+  - Session tokens now saved to `.session_tokens.json`
+  - Auto-load on server startup with expiry validation
+  - Clients no longer need to re-authenticate after server restart
+
+### Fixed
+- CLI `get-transcript` command now correctly handles plain text responses
+  - Previously failed with JSON parse error
+  - Now properly displays PowerShell transcript content
+
 ## [0.3.0] - 2025-12-22
 
 ### Added

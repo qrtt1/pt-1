@@ -159,7 +159,7 @@ pt1 history <client_id> 5
 **驗收標準 (Acceptance Criteria)**:
 - [ ] `pt1 auth` 回傳 exit code 0，輸出包含 "Authentication successful"
 - [ ] `pt1 list-clients` 顯示至少一個狀態為 `[ONLINE]` 的 client
-- [ ] `pt1 send` 回傳 exit code 0，輸出包含 "Command ID: <uuid>"
+- [ ] `pt1 send` 回傳 exit code 0，輸出包含 "Command ID: " 後接 8 字元 ID (例如 5b4e01bc)
 - [ ] `pt1 wait` 回傳 exit code 0，status 顯示 "completed"
 - [ ] 輸出包含至少 4 個欄位：CsName, WindowsVersion, OsArchitecture, TotalPhysicalMemory
 - [ ] `pt1 history` 顯示表格，包含至少 1 筆記錄，最多 5 筆
