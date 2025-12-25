@@ -6,7 +6,7 @@ Get Result Command
 
 import sys
 import requests
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class GetResultCommand(Command):
@@ -38,36 +38,8 @@ class GetResultCommand(Command):
 
         # 查詢命令結果
         try:
-            response = requests.get(
-                f"{config.server_url}/get_result/{command_id}",
-                headers={"X-API-Token": config.api_token},
-                timeout=10,
-            )
-
-            if response.status_code == 401:
-                print("Error: Authentication failed", file=sys.stderr)
-                print(
-                    "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
-                    file=sys.stderr,
-                )
-                return 1
-            elif response.status_code == 404:
-                print(f"Error: Command ID '{command_id}' not found", file=sys.stderr)
-                return 1
-            elif response.status_code != 200:
-                print(
-                    f"Error: Server returned status {response.status_code}",
-                    file=sys.stderr,
-                )
-                print(f"Response: {response.text}", file=sys.stderr)
-                return 1
-
-            result = response.json()
-
-            # 檢查是否有錯誤
-            if "error" in result:
-                print(f"Error: {result['error']}", file=sys.stderr)
-                return 1
+            client = PT1Client(config)
+            result = client.get_result(command_id)
 
             # 顯示命令資訊
             print("Command Result")
