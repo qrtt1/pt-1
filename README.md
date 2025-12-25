@@ -209,7 +209,7 @@ pt-1/
 
 - **CLI 使用**: 執行 `pt1 help` 查看完整命令說明
 - **AI Agent 指南**: 執行 `pt1 prompt` 取得 AI 專用快速參考
-- **Server 部署**: 請參考 [SERVER_SETUP.md](SERVER_SETUP.md)
+- **Server 部署**: 請參考 [server-setup.md](prompts/server-setup.md)
 - **API 文件**: 啟動 server 後訪問 `/ai_guide` 端點
 
 ## 系統需求
