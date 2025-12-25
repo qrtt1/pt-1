@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-12-25
+
 ### Changed
+- **Major project restructure: separated CLI and Server components**
+  - Created `pt1_cli/` package for CLI component
+  - Created `pt1_server/` package for Server component
+  - Clear separation of concerns between client and server code
+  - Both components can be independently developed and maintained
+
+- **Modernized FastAPI application**
+  - Migrated from deprecated `@app.on_event("startup")` to `lifespan` context manager
+  - Using modern async context manager pattern for resource management
+  - Removed unused PUBLIC_URL feature (auto-detection from requests)
+  - Simplified startup messages using proper logging
+
 - **Command IDs shortened from 36 to 8 characters**
   - Changed from full UUID format (e.g., `018302b1-2d28-40fd-a8ef-f7e163009e1e`)
   - To short format using first 8 hex characters (e.g., `5b4e01bc`)
@@ -16,15 +30,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Auth tokens remain full UUID for security
 
 ### Added
+- **Version management system**
+  - Added `__version__.py` files for both CLI and Server components
+  - CLI now supports `pt1 --version` and `pt1 -V` commands
+  - Centralized version management through `setup.py`
+
 - **Session token persistence across server restarts**
   - Session tokens now saved to `.session_tokens.json`
   - Auto-load on server startup with expiry validation
   - Clients no longer need to re-authenticate after server restart
 
+- **New console commands**
+  - `pt1-server`: New command to start server (alternative to uvicorn)
+  - Both `pt1` (CLI) and `pt1-server` (Server) entry points available
+
 ### Fixed
 - CLI `get-transcript` command now correctly handles plain text responses
   - Previously failed with JSON parse error
   - Now properly displays PowerShell transcript content
+
+- Removed duplicate server files from project root
+  - Cleaned up old `routers/`, `services/`, `templates/` directories
+  - Removed `auth.py` and `main.py` from root
+  - All server code now properly organized in `pt1_server/`
+
+- Fixed file path handling for templates, uploads, and tokens
+  - Templates loaded from package directory using relative paths
+  - Tokens and uploads use current working directory (runtime data)
+
+### Removed
+- Removed `uploads/` directory from git tracking
+- Added `session_tokens.json` to `.gitignore`
+- Removed PUBLIC_URL environment variable support (auto-detect only)
 
 ## [0.3.0] - 2025-12-22
 

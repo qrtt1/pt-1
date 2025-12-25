@@ -1,8 +1,15 @@
 from setuptools import setup, find_packages
+import os
+
+# Read version from pt1_server/__version__.py
+version = {}
+version_file = os.path.join(os.path.dirname(__file__), "pt1_server", "__version__.py")
+with open(version_file) as f:
+    exec(f.read(), version)
 
 setup(
     name="pt-1",
-    version="0.3.0",
+    version=version["__version__"],
     packages=find_packages(),
     install_requires=[
         "fastapi",

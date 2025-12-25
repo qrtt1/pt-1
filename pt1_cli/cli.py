@@ -8,6 +8,7 @@ PT-1 CLI Entry Point
 import sys
 from pathlib import Path
 
+from pt1_cli.__version__ import __version__
 from pt1_cli.commands.auth import AuthCommand
 from pt1_cli.commands.quickstart import QuickstartCommand
 from pt1_cli.commands.list_clients import ListClientsCommand
@@ -27,6 +28,11 @@ from pt1_cli.commands.prompt import PromptCommand
 def main():
     """CLI 主函式"""
     program_name = Path(sys.argv[0]).name if sys.argv else "pt1"
+
+    # 檢查 --version 或 -v 選項
+    if len(sys.argv) >= 2 and sys.argv[1] in ["--version", "-V"]:
+        print(f"pt1 version {__version__}")
+        sys.exit(0)
 
     # 檢查是否提供命令
     if len(sys.argv) < 2:

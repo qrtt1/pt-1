@@ -4,4 +4,6 @@ PT-1 Server Component
 FastAPI-based server for remote PowerShell command execution and transcript management.
 """
 
-__version__ = "0.3.0"
+from pt1_server.__version__ import __version__
+
+__all__ = ["__version__"]
