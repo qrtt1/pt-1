@@ -12,7 +12,7 @@ class ClientInfo(BaseModel):
     client_id: str
     hostname: str
     username: str
-    stable_id: str  # Client 提供的 ID（自訂名稱或自動生成的 hash）
+    stable_id: str  # NOTE: Same as client_id (legacy naming for API compatibility with CLI)
     first_seen: float
     last_seen: float
     status: str  # 'online', 'offline'
@@ -37,9 +37,12 @@ def update_client_status(client_id: str, hostname: str, username: str):
 
     使用 client 提供的 client_id 作為 stable_id。
     Client 端已處理 ID 邏輯：自訂 ID 或自動生成的 hash。
+
+    NOTE: stable_id and client_id are the same value. stable_id is kept
+    for legacy API compatibility with CLI (which reads the "stable_id" field).
     """
     now = time.time()
-    # 直接使用 client 提供的 client_id（可能是自訂名稱或自動生成的 hash）
+    # stable_id is same as client_id (legacy naming)
     stable_id = client_id
 
     if stable_id in client_registry:
