@@ -164,7 +164,7 @@ class CommandManager:
 
     def log_client_event(self, stable_id: Optional[str], event: str, status_code: int, detail: str = "") -> str:
         """Log a client API call as history event."""
-        event_id = str(uuid.uuid4())
+        event_id = self._generate_short_id()
         created_at = time.time()
         status = f"client_call_{status_code}"
 
