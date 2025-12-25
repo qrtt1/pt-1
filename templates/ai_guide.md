@@ -305,28 +305,31 @@ iwr '{base_url}/client_install.ps1' -UseBasicParsing | iex
 ## Example Workflow
 
 ```bash
-# Set your API token
-API_TOKEN="your-secret-token-here"
+# Step 1: Exchange for session token
+REFRESH_TOKEN="your-refresh-token-here"
+SESSION_RESPONSE=$(curl -s -X POST "{base_url}/auth/token/exchange" \
+  -H "X-API-Token: $REFRESH_TOKEN")
+SESSION_TOKEN=$(echo $SESSION_RESPONSE | jq -r '.session_token')
 
-# 1. Send command
+# Step 2: Send command using session token
 COMMAND_ID=$(curl -s -X POST "{base_url}/send_command" \
   -H "Content-Type: application/json" \
-  -H "X-API-Token: $API_TOKEN" \
+  -H "X-API-Token: $SESSION_TOKEN" \
   -d '{{"client_id": "workstation-01", "command": "Get-ComputerInfo"}}' \
   | jq -r '.command_id')
 
-# 2. Wait and check result
-curl -H "X-API-Token: $API_TOKEN" \
+# Step 3: Wait and check result
+curl -H "X-API-Token: $SESSION_TOKEN" \
   "{base_url}/get_result/$COMMAND_ID"
 
-# 3. If files were created, download them
-curl -H "X-API-Token: $API_TOKEN" \
+# Step 4: If files were created, download them
+curl -H "X-API-Token: $SESSION_TOKEN" \
   "{base_url}/list_files/$COMMAND_ID"
-curl -H "X-API-Token: $API_TOKEN" \
+curl -H "X-API-Token: $SESSION_TOKEN" \
   "{base_url}/download_file/$COMMAND_ID/output.csv"
 
-# 4. For debugging, check transcript files
-curl -H "X-API-Token: $API_TOKEN" \
+# Step 5: For debugging, check transcript files
+curl -H "X-API-Token: $SESSION_TOKEN" \
   "{base_url}/download_file/$COMMAND_ID/transcript_*.txt"
 ```
 
