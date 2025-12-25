@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown (if needed in the future)
+    # NOTE: If adding cleanup logic here, wrap in try-except to handle errors gracefully
 
 
 app = FastAPI(lifespan=lifespan)
@@ -48,4 +49,7 @@ app.middleware("http")(client_history_middleware_factory())
 def run_server():
     """Entry point for pt1-server command"""
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5566)
+    import os
+    host = os.getenv("PT1_HOST", "0.0.0.0")
+    port = int(os.getenv("PT1_PORT", "5566"))
+    uvicorn.run(app, host=host, port=port)

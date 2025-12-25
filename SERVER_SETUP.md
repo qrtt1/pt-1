@@ -69,14 +69,37 @@ PT-1 使用雙層 token 架構提升安全性：
 
 ### 3. 啟動 Server
 
+#### 方式 1：使用 pt1-server 命令（推薦）
+
+```bash
+pt1-server
+```
+
+#### 方式 2：使用 uvicorn
+
 ```bash
 uvicorn pt1_server.main:app --host 0.0.0.0 --port 5566
 ```
 
+#### 環境變數設定
+
+可透過環境變數調整 server 設定：
+
+```bash
+# 設定 host 與 port（僅適用於 pt1-server 命令）
+export PT1_HOST=0.0.0.0
+export PT1_PORT=5566
+pt1-server
+
+# 設定 session token 有效期（預設 3600 秒 = 1 小時）
+export PT1_SESSION_TOKEN_DURATION_SECONDS=7200
+pt1-server
+```
+
 啟動參數說明：
-- `--host 0.0.0.0`: 監聽所有網路介面（允許外部連線）
-- `--port 5566`: 使用 port 5566（可自訂）
-- `--reload`: 開發模式，程式碼變更自動重載（生產環境不建議）
+- `PT1_HOST`: Server 監聽位址（預設：`0.0.0.0`）
+- `PT1_PORT`: Server 監聽 port（預設：`5566`）
+- `--reload`: 開發模式，程式碼變更自動重載（僅適用 uvicorn，生產環境不建議）
 
 ### 4. 驗證 Server
 
@@ -147,18 +170,6 @@ sudo systemctl enable powershell-executor.service
 ```bash
 # 在專案目錄下
 uvicorn pt1_server.main:app --host 0.0.0.0 --port 5566 --reload
-```
-
-**使用 screen（適合臨時部署）**
-```bash
-# 建立 screen session
-screen -S pt1
-
-# 執行 server
-uvicorn pt1_server.main:app --host 0.0.0.0 --port 5566
-
-# 離開 session (Ctrl+A, D)
-# 重新連接：screen -r pt1
 ```
 
 ## API 認證方式

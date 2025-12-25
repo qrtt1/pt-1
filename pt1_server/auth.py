@@ -5,6 +5,37 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple, List, Dict
 from fastapi import Header, HTTPException, status
 
+
+# =============================================================================
+# Datetime utilities - centralized datetime operations
+# =============================================================================
+
+def get_current_time() -> datetime:
+    """Get current time (UTC, naive datetime)."""
+    return datetime.utcnow()
+
+
+def parse_datetime_string(dt_string: str) -> datetime:
+    """
+    Parse ISO format datetime string to naive datetime.
+
+    Handles "Z" suffix and timezone info, returns naive datetime in UTC.
+    """
+    return datetime.fromisoformat(dt_string.replace("Z", "+00:00")).replace(tzinfo=None)
+
+
+def format_datetime_string(dt: datetime) -> str:
+    """Format naive datetime to ISO string with Z suffix."""
+    return dt.isoformat() + "Z"
+
+
+def add_seconds(dt: datetime, seconds: int) -> datetime:
+    """Add seconds to a datetime."""
+    return dt + timedelta(seconds=seconds)
+
+
+# =============================================================================
+
 # Path to tokens file (persistent source of truth)
 # Use current working directory for tokens.json (consistent with original behavior)
 TOKENS_FILE = os.path.join(os.getcwd(), "tokens.json")
@@ -85,14 +116,14 @@ def _load_session_tokens():
         with open(SESSION_TOKENS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        now = datetime.utcnow()
+        now = get_current_time()
         loaded_count = 0
         expired_count = 0
 
         for session_token, token_info in data.items():
             try:
-                expires_at = datetime.fromisoformat(token_info["expires_at"].replace("Z", "+00:00")).replace(tzinfo=None)
-                created_at = datetime.fromisoformat(token_info["created_at"].replace("Z", "+00:00")).replace(tzinfo=None)
+                expires_at = parse_datetime_string(token_info["expires_at"])
+                created_at = parse_datetime_string(token_info["created_at"])
 
                 # Skip expired tokens
                 if expires_at <= now:
@@ -124,8 +155,8 @@ def _persist_session_tokens():
     for session_token, token_info in _session_tokens.items():
         data[session_token] = {
             "refresh_token": token_info["refresh_token"],
-            "expires_at": token_info["expires_at"].isoformat() + "Z",
-            "created_at": token_info["created_at"].isoformat() + "Z",
+            "expires_at": format_datetime_string(token_info["expires_at"]),
+            "created_at": format_datetime_string(token_info["created_at"]),
         }
 
     try:
@@ -155,7 +186,7 @@ def _parse_token_entry(item: dict) -> Optional[Tuple[str, str, str, Optional[int
     expires_at = None
     if expires_at_raw:
         try:
-            expires_at = datetime.fromisoformat(expires_at_raw.replace("Z", "+00:00")).replace(tzinfo=None)
+            expires_at = parse_datetime_string(expires_at_raw)
         except ValueError:
             print(f"[Auth] Warning: Invalid expires_at '{expires_at_raw}' for '{name}', ignoring expiry")
             expires_at = None
@@ -170,7 +201,7 @@ def _select_active_token(tokens_data: List[dict]) -> Tuple[str, str, str, dateti
     Returns:
         tuple: (active_token, name, description, expiry, updated_tokens_data)
     """
-    now = datetime.utcnow()
+    now = get_current_time()
     default_rotation = _default_rotation_seconds()
     updated_entries = []
     active_candidate = None
@@ -191,7 +222,7 @@ def _select_active_token(tokens_data: List[dict]) -> Tuple[str, str, str, dateti
                     "name": name,
                     "description": description,
                     "rotation_seconds": rotation_seconds,
-                    "expires_at": expires_at.isoformat() + "Z",
+                    "expires_at": format_datetime_string(expires_at),
                 }
             )
             if not active_candidate:
@@ -200,14 +231,14 @@ def _select_active_token(tokens_data: List[dict]) -> Tuple[str, str, str, dateti
 
         # Expired or no expiry; rotate if rotation is defined
         new_token = str(uuid.uuid4())
-        new_expiry = now + timedelta(seconds=rotation)
+        new_expiry = add_seconds(now, rotation)
         updated_entries.append(
             {
                 "token": new_token,
                 "name": name,
                 "description": description,
                 "rotation_seconds": rotation_seconds,
-                "expires_at": new_expiry.isoformat() + "Z",
+                "expires_at": format_datetime_string(new_expiry),
             }
         )
         if not active_candidate:
@@ -216,13 +247,13 @@ def _select_active_token(tokens_data: List[dict]) -> Tuple[str, str, str, dateti
     if not active_candidate:
         # No valid tokens; generate a default one
         new_token = str(uuid.uuid4())
-        new_expiry = now + timedelta(seconds=default_rotation)
+        new_expiry = add_seconds(now, default_rotation)
         generated = {
             "token": new_token,
             "name": "generated-default",
             "description": "Generated because tokens.json had no valid entries",
             "rotation_seconds": default_rotation,
-            "expires_at": new_expiry.isoformat() + "Z",
+            "expires_at": format_datetime_string(new_expiry),
         }
         updated_entries.append(generated)
         active_candidate = (
@@ -239,7 +270,7 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     """Get active token and metadata; rotates/persists if needed."""
     global _active_token, _active_expiry, _active_name, _active_description
 
-    now = datetime.utcnow()
+    now = get_current_time()
     if _active_token and _active_expiry and _active_expiry > now:
         return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
 
@@ -255,7 +286,7 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     _active_name = name
     _active_description = description
 
-    expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
+    expiry_str = format_datetime_string(expiry) if expiry else "unknown"
     print(
         f"[Auth] Active API token: {_active_token} (expires at UTC {expiry_str}, rotation every {_default_rotation_seconds()}s)"
     )
@@ -269,7 +300,7 @@ def get_token_info(token: str) -> dict:
     """
     active_token, expiry, metadata = get_active_token_with_metadata()
     if token == active_token:
-        expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
+        expiry_str = format_datetime_string(expiry) if expiry else "unknown"
         desc = metadata.get("description", "")
         if desc:
             desc = f"{desc} (expires at UTC {expiry_str})"
@@ -293,7 +324,7 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     """Get active token and metadata; rotates/persists if needed."""
     global _active_token, _active_expiry, _active_name, _active_description
 
-    now = datetime.utcnow()
+    now = get_current_time()
     if _active_token and _active_expiry and _active_expiry > now:
         return _active_token, _active_expiry, {"name": _active_name, "description": _active_description}
 
@@ -309,7 +340,7 @@ def get_active_token_with_metadata() -> Tuple[str, datetime, dict]:
     _active_name = name
     _active_description = description
 
-    expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
+    expiry_str = format_datetime_string(expiry) if expiry else "unknown"
     print(
         f"[Auth] Active API token: {_active_token} (expires at UTC {expiry_str}, rotation every {_default_rotation_seconds()}s)"
     )
@@ -340,19 +371,20 @@ def create_session_token(refresh_token: str) -> Tuple[str, datetime]:
 
     # Generate session token
     session_token = str(uuid.uuid4())
-    expires_at = datetime.utcnow() + timedelta(seconds=_session_token_duration_seconds())
+    now = get_current_time()
+    expires_at = add_seconds(now, _session_token_duration_seconds())
 
     # Store session token in memory
     _session_tokens[session_token] = {
         "refresh_token": refresh_token,
         "expires_at": expires_at,
-        "created_at": datetime.utcnow(),
+        "created_at": now,
     }
 
     # Persist to disk
     _persist_session_tokens()
 
-    print(f"[Auth] Created session token {session_token[:8]}... (expires at {expires_at.isoformat()}Z)")
+    print(f"[Auth] Created session token {session_token[:8]}... (expires at {format_datetime_string(expires_at)})")
 
     return session_token, expires_at
 
@@ -374,7 +406,7 @@ def verify_session_token(session_token: str) -> bool:
         return False
 
     token_data = _session_tokens[session_token]
-    now = datetime.utcnow()
+    now = get_current_time()
 
     # Check if expired
     if token_data["expires_at"] <= now:
@@ -390,7 +422,7 @@ def cleanup_expired_sessions():
     """Remove expired session tokens from memory and disk."""
     _load_session_tokens()
 
-    now = datetime.utcnow()
+    now = get_current_time()
     expired = [
         token for token, data in _session_tokens.items()
         if data["expires_at"] <= now
