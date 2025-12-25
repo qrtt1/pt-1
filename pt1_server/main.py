@@ -1,30 +1,32 @@
 import os
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pt1_server.routers import root, clients, commands, client_registry, transcripts, auth
 from pt1_server.auth import get_active_token_with_metadata, get_token_expiry, _default_rotation_seconds
 from pt1_server.services.client_history import client_history_middleware_factory
 
+logger = logging.getLogger("uvicorn")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("\n" + "="*80)
-    print("                        PT-1 SERVER STARTED")
-    print("="*80)
-    print("  Server URL  : http://localhost:5566")
+    logger.info("\n" + "="*80)
+    logger.info("                        PT-1 SERVER STARTED")
+    logger.info("="*80)
+    logger.info("  Server URL  : http://localhost:5566")
     active_token, expiry, metadata = get_active_token_with_metadata()
     expiry_str = expiry.isoformat() + "Z" if expiry else "unknown"
-    print(f"  Active API token: {active_token}")
-    print(f"  Token expires (UTC): {expiry_str}")
+    logger.info(f"  Active API token: {active_token}")
+    logger.info(f"  Token expires (UTC): {expiry_str}")
     rotation_seconds = _default_rotation_seconds()
     if rotation_seconds % 86400 == 0:
         rotation_hint = f"{rotation_seconds} seconds ({rotation_seconds // 86400} days)"
     else:
         rotation_hint = f"{rotation_seconds} seconds"
-    print(f"  Rotation interval (default): {rotation_hint}")
-    print("="*80)
-    print("")
+    logger.info(f"  Rotation interval (default): {rotation_hint}")
+    logger.info("="*80)
 
     yield
 
