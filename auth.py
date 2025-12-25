@@ -387,7 +387,7 @@ async def verify_token(
     if not verify_session_token(token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session token 無效或已過期，請使用 refresh token 重新取得",
+            detail="Session token 無效或已過期，請重新啟動 client 以取得新的 token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
