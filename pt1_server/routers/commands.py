@@ -243,16 +243,28 @@ async def download_file(command_id: str, filename: str, cmd_manager: CommandMana
     command_info = cmd_manager.get_command(command_id)
     if not command_info:
         raise HTTPException(status_code=404, detail=f"Command ID {command_id} not found")
-    
+
     # Check if file exists in command's file list
     file_exists = any(f.filename == filename for f in command_info.files)
     if not file_exists:
         raise HTTPException(status_code=404, detail=f"File {filename} not found for command {command_id}")
-    
-    file_path = UPLOAD_DIR / command_id / filename
+
+    # Security: Prevent path traversal attacks
+    command_folder = UPLOAD_DIR / command_id
+    file_path = command_folder / filename
+
+    # Verify the resolved path is within the command folder
+    try:
+        resolved_file_path = file_path.resolve()
+        resolved_command_folder = command_folder.resolve()
+        if not str(resolved_file_path).startswith(str(resolved_command_folder)):
+            raise HTTPException(status_code=400, detail="Invalid file path")
+    except (OSError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid file path")
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"File {filename} not found on disk")
-    
+
     return FileResponse(
         path=str(file_path),
         filename=filename,
