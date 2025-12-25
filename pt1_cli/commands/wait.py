@@ -7,7 +7,7 @@ Wait Command
 import sys
 import time
 import requests
-from pt1_cli.core import Command, PT1Config
+from pt1_cli.core import Command, PT1Config, PT1Client
 
 
 class WaitCommand(Command):
@@ -21,6 +21,9 @@ class WaitCommand(Command):
         if not config.is_configured():
             config.show_config_help()
             return 1
+
+        # 建立 API client
+        client = PT1Client(config)
 
         # 檢查是否提供 command_id
         if len(sys.argv) < 3:
@@ -107,37 +110,35 @@ class WaitCommand(Command):
                     print(f"  - Wait again:   pt1 wait {command_id} --max 60")
                     return 0
 
-                # 查詢命令狀態
-                response = requests.get(
-                    f"{config.server_url}/get_result/{command_id}",
-                    headers={"X-API-Token": config.api_token},
-                    timeout=10,
-                )
+                # 查詢命令狀態（使用 PT1Client 的 API）
+                try:
+                    result = client.get_result(command_id)
+                except requests.HTTPError as e:
+                    response_status = e.response.status_code if e.response else 500
+                    response_text = e.response.text if e.response else str(e)
 
-                if response.status_code == 401:
-                    print("\n", file=sys.stderr)
-                    print("Error: Authentication failed", file=sys.stderr)
-                    print(
-                        "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
-                        file=sys.stderr,
-                    )
-                    return 1
-                elif response.status_code == 404:
-                    print("\n", file=sys.stderr)
-                    print(
-                        f"Error: Command ID '{command_id}' not found", file=sys.stderr
-                    )
-                    return 1
-                elif response.status_code != 200:
-                    print("\n", file=sys.stderr)
-                    print(
-                        f"Error: Server returned status {response.status_code}",
-                        file=sys.stderr,
-                    )
-                    print(f"Response: {response.text}", file=sys.stderr)
-                    return 1
-
-                result = response.json()
+                    if response_status == 401:
+                        print("\n", file=sys.stderr)
+                        print("Error: Authentication failed", file=sys.stderr)
+                        print(
+                            "Please check your PT1_SERVER_URL and PT1_API_TOKEN",
+                            file=sys.stderr,
+                        )
+                        return 1
+                    elif response_status == 404:
+                        print("\n", file=sys.stderr)
+                        print(
+                            f"Error: Command ID '{command_id}' not found", file=sys.stderr
+                        )
+                        return 1
+                    else:
+                        print("\n", file=sys.stderr)
+                        print(
+                            f"Error: Server returned status {response_status}",
+                            file=sys.stderr,
+                        )
+                        print(f"Response: {response_text}", file=sys.stderr)
+                        return 1
 
                 # 檢查是否有錯誤
                 if "error" in result:
