@@ -279,37 +279,54 @@ pt1 get-transcript <transcript_id>
 
 ---
 
-## 測試案例 6: 多 Client 管理
+## 測試案例 6: 多 Client 隔離驗證
 
-**目的**: 在多個 clients 上執行相同命令並比較結果
+**目的**: 驗證同一台機器上的多個 client agents 可以獨立運作且命令歷史正確隔離
 
-**前置條件**: 至少有兩個 clients 在線
+**前置條件**: 在同一台 Windows 機器上建立兩個 client agents
 
 **步驟**:
 ```bash
-# 1. 列出所有 clients
+# 1. 建立第二個測試 client（在原有的 Windows 機器上另開 PowerShell）
+pt1 quickstart e2e-tests-2
+
+# 2. 在 Windows 機器的新 PowerShell 視窗執行上述命令
+# （第一個 e2e-tests client 繼續運行）
+
+# 3. 等待 5-10 秒後，列出所有 clients
 pt1 list-clients
 
-# 2. 對第一個 client 執行命令
-pt1 send <client_id_1> "Get-ComputerInfo | Select-Object CsName, WindowsVersion"
+# 4. 對第一個 client 執行命令
+pt1 send e2e-tests "Write-Output 'Message from client 1'"
 pt1 wait <command_id_1>
 
-# 3. 對第二個 client 執行相同命令
-pt1 send <client_id_2> "Get-ComputerInfo | Select-Object CsName, WindowsVersion"
+# 5. 對第二個 client 執行命令
+pt1 send e2e-tests-2 "Write-Output 'Message from client 2'"
 pt1 wait <command_id_2>
 
-# 4. 比較兩個 clients 的命令歷史
-pt1 history <client_id_1> 3
-pt1 history <client_id_2> 3
+# 6. 驗證命令歷史隔離
+pt1 history e2e-tests 5
+pt1 history e2e-tests-2 5
+
+# 7. 清理：終止第二個 client
+pt1 terminate e2e-tests-2
+
+# 8. 驗證第二個 client 已離線
+sleep 5
+pt1 list-clients
 ```
 
 **驗收標準 (Acceptance Criteria)**:
-- [ ] `pt1 list-clients` 顯示至少 2 個 `[ONLINE]` 的 clients
+- [ ] `pt1 quickstart e2e-tests-2` 回傳 exit code 0
+- [ ] `pt1 list-clients` 顯示 2 個 `[ONLINE]` 的 clients（e2e-tests 和 e2e-tests-2）
+- [ ] 兩個 clients 的 HOSTNAME 相同（確認在同一台機器）
 - [ ] 兩個 `pt1 wait` 都回傳 exit code 0
-- [ ] 第一個 client 的輸出 CsName 與第二個不同（確認是不同機器）
-- [ ] `pt1 history <client_id_1>` 只顯示該 client 的記錄
-- [ ] `pt1 history <client_id_2>` 只顯示該 client 的記錄
-- [ ] 兩個 history 的記錄不會混淆
+- [ ] 第一個輸出包含 "Message from client 1"
+- [ ] 第二個輸出包含 "Message from client 2"
+- [ ] `pt1 history e2e-tests` 只顯示 client 1 的記錄（包含 "Message from client 1"）
+- [ ] `pt1 history e2e-tests-2` 只顯示 client 2 的記錄（包含 "Message from client 2"）
+- [ ] `pt1 terminate e2e-tests-2` 回傳 exit code 0
+- [ ] 終止後 `pt1 list-clients` 只顯示 e2e-tests（或 e2e-tests-2 狀態為 OFFLINE）
 
 ---
 
