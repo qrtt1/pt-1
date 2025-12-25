@@ -16,27 +16,39 @@
 
 **重要**: 在執行任何測試案例前，請先確保有一個專門用於測試的 client。
 
-### 步驟 1: 檢查是否存在 e2e-tests client
+### 步驟 1: 檢查測試 client（嚴格驗證）
 
 ```bash
 # 查詢所有 clients
 pt1 list-clients
 
-# 檢查是否有 client_id 為 "e2e-tests" 的 client
-pt1 list-clients | grep "e2e-tests"
+# 檢查是否有 client_id 為 "e2e-tests-01" 的 client
+if pt1 list-clients | grep -q "^e2e-tests-01 "; then
+    echo "✓ 找到測試 client: e2e-tests-01"
+else
+    echo "✗ 錯誤: 必須有 client_id 為 'e2e-tests-01' 的 client"
+    echo ""
+    echo "請執行步驟 2 建立測試 client"
+    exit 1
+fi
 ```
 
-### 步驟 2: 如果不存在，建立測試 client
+**重要**:
+- Client ID **必須完全符合** `e2e-tests-01`（不可使用其他名稱如 test-run, my-client 等）
+- 如果已有其他 client 在線但不是 `e2e-tests-01`，請建立新的 `e2e-tests-01` client
+- 這確保所有測試案例使用一致的 client ID
 
-如果上述命令沒有找到 `e2e-tests` client，請執行以下步驟建立：
+### 步驟 2: 建立測試 client（如果不存在）
+
+如果步驟 1 找不到 `e2e-tests-01` client，執行以下步驟建立：
 
 ```bash
 # 1. 產生安裝命令
-pt1 quickstart e2e-tests
+pt1 quickstart e2e-tests-01
 
 # 2. 複製顯示的 PowerShell oneliner
 # 輸出類似：
-# iwr "https://server/win_agent.ps1?client_id=e2e-tests" -UseBasicParsing -Headers @{"X-API-Token"="..."} | iex
+# iwr "https://server/win_agent.ps1?client_id=e2e-tests-01" -UseBasicParsing -Headers @{"X-API-Token"="..."} | iex
 
 # 3. 在 Windows 測試機器上執行該命令（PowerShell）
 # 注意：以一般使用者權限執行即可，不需要管理員權限
@@ -46,17 +58,17 @@ pt1 quickstart e2e-tests
 
 ```bash
 # 等待約 5-10 秒後檢查
-pt1 list-clients | grep "e2e-tests"
+pt1 list-clients | grep "e2e-tests-01"
 
 # 預期輸出：
-# e2e-tests            [ONLINE]        <HOSTNAME>           <USERNAME>      <TIMESTAMP>
+# e2e-tests-01            [ONLINE]        <HOSTNAME>           <USERNAME>      <TIMESTAMP>
 ```
 
 ### 步驟 4: 執行基本健康檢查
 
 ```bash
 # 發送簡單測試命令
-pt1 send e2e-tests "Write-Output 'Test connection successful'"
+pt1 send e2e-tests-01 "Write-Output 'Test connection successful'"
 
 # 等待結果
 pt1 wait <command_id>
@@ -104,7 +116,7 @@ pt1 wait <command_id>
    pt1 auth
 
    # 重新產生 quickstart 命令
-   pt1 quickstart e2e-tests
+   pt1 quickstart e2e-tests-01
    ```
 
 ### Baseline 完成確認
@@ -112,13 +124,13 @@ pt1 wait <command_id>
 當你看到以下輸出，表示 baseline 已經準備完成：
 
 ```bash
-$ pt1 list-clients | grep "e2e-tests"
-e2e-tests            [ONLINE]        CC827F8BC7AA         testuser        13:45:23 (5s ago)
+$ pt1 list-clients | grep "e2e-tests-01"
+e2e-tests-01            [ONLINE]        CC827F8BC7AA         testuser        13:45:23 (5s ago)
 ```
 
 現在可以開始執行以下的測試案例。
 
-**注意**: 後續所有測試案例中的 `<client_id>` 都應該替換為 `e2e-tests`。
+**注意**: 後續所有測試案例中的 `<client_id>` 都應該替換為 `e2e-tests-01`。
 
 ---
 
@@ -288,19 +300,19 @@ pt1 get-transcript <transcript_id>
 **步驟**:
 ```bash
 # 1. 建立第二個測試 client（在原有的 Windows 機器上另開 PowerShell）
-pt1 quickstart e2e-tests-2
+pt1 quickstart e2e-tests-02
 
 # 2. 在 Windows 機器的新 PowerShell 視窗執行上述命令
-# （第一個 e2e-tests client 繼續運行）
+# （第一個 e2e-tests-01 client 繼續運行）
 
 # 3. 等待 5-10 秒後，列出所有 clients
 pt1 list-clients
 
 # 4. 對兩個 clients 同時發送長時間運行的命令（測試並行執行）
-pt1 send e2e-tests "1..10 | ForEach-Object { Start-Sleep -Seconds 1; Write-Output \"Client1-Step-\$_\" }"
+pt1 send e2e-tests-01 "1..10 | ForEach-Object { Start-Sleep -Seconds 1; Write-Output \"Client1-Step-\$_\" }"
 CMD1_ID=<command_id_1>
 
-pt1 send e2e-tests-2 "1..10 | ForEach-Object { Start-Sleep -Seconds 1; Write-Output \"Client2-Step-\$_\" }"
+pt1 send e2e-tests-02 "1..10 | ForEach-Object { Start-Sleep -Seconds 1; Write-Output \"Client2-Step-\$_\" }"
 CMD2_ID=<command_id_2>
 
 # 5. 同時等待兩個命令（驗證並行執行）
@@ -313,11 +325,11 @@ pt1 get-result $CMD1_ID | grep "Client1-Step"
 pt1 get-result $CMD2_ID | grep "Client2-Step"
 
 # 7. 對第一個 client 發送會產生檔案的命令
-pt1 send e2e-tests "Write-Output 'File from client 1' | Out-File client1.txt"
+pt1 send e2e-tests-01 "Write-Output 'File from client 1' | Out-File client1.txt"
 pt1 wait <command_id_3>
 
 # 8. 對第二個 client 發送會產生檔案的命令（驗證檔案隔離）
-pt1 send e2e-tests-2 "Write-Output 'File from client 2' | Out-File client2.txt"
+pt1 send e2e-tests-02 "Write-Output 'File from client 2' | Out-File client2.txt"
 pt1 wait <command_id_4>
 
 # 9. 列出兩個 clients 的檔案（驗證工作目錄隔離）
@@ -325,21 +337,21 @@ pt1 list-files <command_id_3>
 pt1 list-files <command_id_4>
 
 # 10. 驗證命令歷史完全隔離
-pt1 history e2e-tests 10
-pt1 history e2e-tests-2 10
+pt1 history e2e-tests-01 10
+pt1 history e2e-tests-02 10
 
 # 11. 清理：終止第二個 client
-pt1 terminate e2e-tests-2
+pt1 terminate e2e-tests-02
 
 # 12. 驗證終止一個 client 不影響另一個
 sleep 5
 pt1 list-clients
-pt1 send e2e-tests "Write-Output 'Client 1 still alive'"
+pt1 send e2e-tests-01 "Write-Output 'Client 1 still alive'"
 pt1 wait <command_id_5>
 ```
 
 **驗收標準 (Acceptance Criteria)**:
-- [ ] `pt1 quickstart e2e-tests-2` 回傳 exit code 0
+- [ ] `pt1 quickstart e2e-tests-02` 回傳 exit code 0
 - [ ] `pt1 list-clients` 顯示 2 個 `[ONLINE]` 的 clients，HOSTNAME 相同但 client_id 不同
 - [ ] 兩個長時間命令可以**並行執行**（同時運行，不會互相阻塞）
 - [ ] Client1 的輸出只包含 "Client1-Step-1" 到 "Client1-Step-10"
@@ -348,10 +360,10 @@ pt1 wait <command_id_5>
 - [ ] `pt1 list-files <cmd3>` 只顯示 "client1.txt"
 - [ ] `pt1 list-files <cmd4>` 只顯示 "client2.txt"
 - [ ] 兩個 client 的工作目錄互相獨立（不同的 temp 目錄）
-- [ ] `pt1 history e2e-tests` 只顯示 client 1 的 3 個命令
-- [ ] `pt1 history e2e-tests-2` 只顯示 client 2 的 2 個命令
+- [ ] `pt1 history e2e-tests-01` 只顯示 client 1 的 3 個命令
+- [ ] `pt1 history e2e-tests-02` 只顯示 client 2 的 2 個命令
 - [ ] History 記錄沒有交叉或混淆
-- [ ] `pt1 terminate e2e-tests-2` 成功後，e2e-tests 仍然 ONLINE 且可接收命令
+- [ ] `pt1 terminate e2e-tests-02` 成功後，e2e-tests-01 仍然 ONLINE 且可接收命令
 - [ ] 終止 client 2 後，client 1 仍可正常執行命令
 
 ---
@@ -541,20 +553,34 @@ echo "=== PT-1 CLI 自動化測試 ==="
 echo "1. 驗證連線..."
 pt1 auth || exit 1
 
-# 2. 檢查測試專用 client (e2e-tests)
+# 2. 檢查測試專用 client (嚴格驗證)
 echo "2. 檢查測試 client..."
-CLIENT_ID="e2e-tests"
-if ! pt1 list-clients | grep -q "$CLIENT_ID.*ONLINE"; then
-    echo "錯誤: 測試 client '$CLIENT_ID' 不存在或未上線"
+CLIENT_ID="e2e-tests-01"
+
+# 檢查是否有 e2e-tests-01 client 且狀態為 ONLINE
+if ! pt1 list-clients | grep -q "^$CLIENT_ID.*\[ONLINE\]"; then
     echo ""
-    echo "請先執行 Baseline 檢查建立測試 client："
-    echo "  1. pt1 quickstart e2e-tests"
+    echo "=========================================="
+    echo "錯誤: 測試 client '$CLIENT_ID' 不存在或未上線"
+    echo "=========================================="
+    echo ""
+    echo "當前 clients 狀態:"
+    pt1 list-clients
+    echo ""
+    echo "所有測試案例要求使用固定的 client ID: e2e-tests-01"
+    echo ""
+    echo "請執行以下步驟建立測試 client:"
+    echo "  1. pt1 quickstart e2e-tests-01"
     echo "  2. 在 Windows 機器執行產生的 PowerShell 命令"
-    echo "  3. 確認 client 上線：pt1 list-clients | grep e2e-tests"
+    echo "  3. 等待 5-10 秒"
+    echo "  4. 確認 client 上線："
+    echo "     pt1 list-clients | grep e2e-tests-01"
+    echo ""
+    echo "注意: 不可使用其他 client ID 進行測試"
     echo ""
     exit 1
 fi
-echo "✓ 使用測試 client: $CLIENT_ID"
+echo "✓ 找到測試 client: $CLIENT_ID (ONLINE)"
 
 # 3. 測試基本命令
 echo "3. 測試基本命令..."
