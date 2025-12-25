@@ -176,3 +176,4 @@ uploads/
 # API tokens
 tokens.json
 .session_tokens.json
+session_tokens.json
