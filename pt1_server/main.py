@@ -1,23 +1,14 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pt1_server.routers import root, clients, commands, client_registry, transcripts, auth
 from pt1_server.auth import get_active_token_with_metadata, get_token_expiry, _default_rotation_seconds
 from pt1_server.services.client_history import client_history_middleware_factory
 
-app = FastAPI()
 
-# 引入各個 router 模組
-app.include_router(root.router)
-app.include_router(clients.router)
-app.include_router(commands.router)
-app.include_router(client_registry.router)
-app.include_router(transcripts.router)
-app.include_router(auth.router)
-
-app.middleware("http")(client_history_middleware_factory())
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     print("\n" + "="*80)
     print("                        PT-1 SERVER STARTED")
     print("="*80)
@@ -34,6 +25,23 @@ async def startup_event():
     print(f"  Rotation interval (default): {rotation_hint}")
     print("="*80)
     print("")
+
+    yield
+
+    # Shutdown (if needed in the future)
+
+
+app = FastAPI(lifespan=lifespan)
+
+# 引入各個 router 模組
+app.include_router(root.router)
+app.include_router(clients.router)
+app.include_router(commands.router)
+app.include_router(client_registry.router)
+app.include_router(transcripts.router)
+app.include_router(auth.router)
+
+app.middleware("http")(client_history_middleware_factory())
 
 def run_server():
     """Entry point for pt1-server command"""
