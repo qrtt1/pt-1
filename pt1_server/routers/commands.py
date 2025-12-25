@@ -21,9 +21,6 @@ router = APIRouter()
 UPLOAD_DIR = Path.cwd() / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-# 已移至 services.command_manager
-import time
-
 class CommandRequest(BaseModel):
     client_id: str
     command: str

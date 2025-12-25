@@ -160,8 +160,13 @@ def _load_tokens_file() -> dict:
     if not os.path.exists(TOKENS_FILE):
         return {"tokens": []}
 
-    with open(TOKENS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(TOKENS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"[Auth] ERROR: Invalid JSON in {TOKENS_FILE}: {e}")
+        print(f"[Auth] Returning empty tokens list to prevent server crash")
+        return {"tokens": []}
 
 
 def _persist_tokens(data: dict):
