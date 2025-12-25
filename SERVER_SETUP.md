@@ -313,19 +313,27 @@ curl -H "X-API-Token: your-token" \
 ```
 
 ### 效能調校
-```bash
-# 使用多個 worker processes
-uvicorn pt1_server.main:app \
-  --host 0.0.0.0 \
-  --port 5566 \
-  --workers 4
 
-# 使用 Gunicorn + Uvicorn workers
-gunicorn pt1_server.main:app \
-  --workers 4 \
-  --worker-class uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:5566
+**注意：目前不支援 multi-worker 模式**
+
+PT-1 的 session token 機制使用 in-memory storage，設計為 single worker 模式。使用多個 workers 會導致：
+- Session tokens 無法在 workers 間共享
+- 認證可能隨機失敗（請求分配到不同 worker）
+
+**推薦的擴展方式**：
+```bash
+# 方式 1: 部署多個 single-worker instances + load balancer
+# Instance 1 on port 5566
+uvicorn pt1_server.main:app --host 0.0.0.0 --port 5566
+
+# Instance 2 on port 5567
+uvicorn pt1_server.main:app --host 0.0.0.0 --port 5567
+
+# 使用 nginx 做 load balancing with ip_hash (sticky sessions)
 ```
+
+**未來如需 multi-worker 支援**：
+需要將 session storage 改為共享儲存（Redis/Database），詳見 `pt1_server/auth.py` 註解說明。
 
 ## 疑難排解
 

@@ -84,6 +84,32 @@ def add_seconds(dt: datetime, seconds: int) -> datetime:
 TOKENS_FILE = os.path.join(os.getcwd(), "tokens.json")
 SESSION_TOKENS_FILE = os.path.join(os.getcwd(), ".session_tokens.json")
 
+# =============================================================================
+# In-memory state (single-worker mode only)
+# =============================================================================
+#
+# IMPORTANT: These global variables are NOT thread-safe across multiple workers.
+#
+# Current design:
+# - Designed for single worker mode (default uvicorn deployment)
+# - Session tokens are stored in memory and persisted to disk
+# - Each worker process has its own memory space
+#
+# Multi-worker considerations:
+# - If running with --workers N, each worker has separate memory
+# - Session tokens created by worker 1 won't be visible to worker 2
+# - This can cause authentication failures
+#
+# Solutions for multi-worker (if needed in the future):
+# 1. Use Redis for shared session storage (recommended)
+# 2. Use database (PostgreSQL/SQLite) with proper locking
+# 3. Use sticky sessions in load balancer (nginx ip_hash)
+# 4. Deploy multiple single-worker instances behind load balancer
+#
+# For now, keep it simple - single worker is sufficient for PT-1's use case.
+#
+# =============================================================================
+
 # Session token storage (in-memory, loaded from file on startup)
 _session_tokens: Dict[str, Dict] = {}  # session_token -> {refresh_token, expires_at, created_at}
 _session_tokens_loaded = False
