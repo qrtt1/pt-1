@@ -8,6 +8,8 @@
 2. CLI 已安裝並設定完成（`~/.pt-1/.env` 包含正確的 `PT1_SERVER_URL` 和 `PT1_API_TOKEN`）
 3. 至少有一個 Windows client 已註冊並在線
 
+**重要提醒**: 所有測試案例都設計為使用一般使用者權限執行，**不需要管理員（Administrator）權限**。測試命令僅讀取系統資訊和在使用者 temp 目錄建立檔案。
+
 ---
 
 ## Baseline 檢查：建立測試專用 Client
@@ -37,7 +39,7 @@ pt1 quickstart e2e-tests
 # iwr "https://server/win_agent.ps1?client_id=e2e-tests" -UseBasicParsing -Headers @{"X-API-Token"="..."} | iex
 
 # 3. 在 Windows 測試機器上執行該命令（PowerShell）
-# 注意：需要以管理員權限執行 PowerShell
+# 注意：以一般使用者權限執行即可，不需要管理員權限
 ```
 
 ### 步驟 3: 驗證 client 已上線
