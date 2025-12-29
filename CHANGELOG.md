@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2025-12-29
+
 ### Changed
 - Adjust wait command defaults: 0.5s polling, 30s max wait, status output throttled to 1s.
+- Update prompt guidance for wait timeout and transcript review flow.
 
 ## [0.4.1] - 2025-12-25
 
