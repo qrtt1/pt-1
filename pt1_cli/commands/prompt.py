@@ -51,6 +51,8 @@ Verify setup:
 4. Wait for completion (auto-polling):
    pt1 wait <command_id>
 
+   Default timeout is 30 seconds.
+
    Or manually check result:
    pt1 get-result <command_id>
 
@@ -163,6 +165,14 @@ If command fails:
 2. Review error message in output
 3. Check transcript for details: pt1 list-transcripts <client_id>
 4. View full transcript: pt1 get-transcript <transcript_id>
+
+## Wait Timeout Guidance
+
+Most commands complete before the first wait ends.
+
+1. After the first wait finishes, check transcript data first.
+2. If transcript looks normal and command result is still missing, run a second wait.
+3. Before a third wait, check if the command failed or transcripts are missing, then decide whether to continue.
 
 Common issues:
 - Client offline: Use pt1 list-clients to verify availability
