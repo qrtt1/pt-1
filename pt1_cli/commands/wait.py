@@ -33,10 +33,11 @@ class WaitCommand(Command):
             print("", file=sys.stderr)
             print("Options:", file=sys.stderr)
             print(
-                "  --interval <seconds>  Polling interval (default: 2)", file=sys.stderr
+                "  --interval <seconds>  Polling interval (default: 0.5)",
+                file=sys.stderr,
             )
             print(
-                "  --max <seconds>       Maximum wait time (default: 300)",
+                "  --max <seconds>       Maximum wait time (default: 30)",
                 file=sys.stderr,
             )
             print("", file=sys.stderr)
@@ -54,8 +55,8 @@ class WaitCommand(Command):
         command_id = sys.argv[2]
 
         # 解析選項
-        interval = 2  # 預設 2 秒
-        timeout = 300  # 預設 5 分鐘
+        interval = 0.5  # 預設 0.5 秒
+        timeout = 30  # 預設 30 秒
 
         i = 3
         while i < len(sys.argv):
@@ -92,6 +93,7 @@ class WaitCommand(Command):
         # 開始輪詢
         start_time = time.time()
         dots = 0
+        last_status_print = 0.0
 
         print(f"Waiting for command {command_id} to complete...")
         print(f"(polling every {interval}s, timeout: {timeout}s)")
@@ -202,15 +204,17 @@ class WaitCommand(Command):
 
                     return 0 if status == "completed" else 1
 
-                # 命令還在執行，顯示進度指示器
-                dots = (dots + 1) % 4
-                progress = "." * dots + " " * (3 - dots)
-                elapsed_str = f"{elapsed:.0f}s"
-                print(
-                    f"\rStatus: {status:12} [{progress}] (elapsed: {elapsed_str})",
-                    end="",
-                    flush=True,
-                )
+                # 命令還在執行，狀態顯示最多每秒一次
+                if elapsed - last_status_print >= 1:
+                    last_status_print = elapsed
+                    dots = (dots + 1) % 4
+                    progress = "." * dots + " " * (3 - dots)
+                    elapsed_str = f"{elapsed:.0f}s"
+                    print(
+                        f"\rStatus: {status:12} [{progress}] (elapsed: {elapsed_str})",
+                        end="",
+                        flush=True,
+                    )
 
                 # 等待下一次輪詢
                 time.sleep(interval)
