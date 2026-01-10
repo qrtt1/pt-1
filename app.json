@@ -1,0 +1,16 @@
+{
+  "name": "PT-1 Server",
+  "description": "Remote PowerShell command execution server for AI assistants.",
+  "env": {
+    "PT1_SESSION_TOKEN_DURATION_SECONDS": {
+      "description": "Session token duration in seconds (Default: 3600)",
+      "value": "3600",
+      "required": false
+    },
+    "PT1_TOKEN_ROTATION_SECONDS": {
+      "description": "Token rotation interval in seconds (Default: 604800 / 7 days)",
+      "value": "604800",
+      "required": false
+    }
+  }
+}

@@ -83,6 +83,18 @@ PT-1 CLI 專為 AI agent 設計，提供清晰的使用指南。以下是典型�
 - 提供 PowerShell 命令範例
 - AI agent 可以快速理解工具用法，無需查閱多份文件
 
+## 部署至 Google Cloud Run
+
+你可以透過下方的按鈕，一鍵將 PT-1 Server 部署至 Google Cloud Run：
+
+[![Run on Google Cloud](https://deploy.cloud.run/button.svg)](https://deploy.cloud.run)
+
+**⚠️ 注意事項：**
+Google Cloud Run 是無狀態 (Stateless) 的環境。這意味著：
+1. **Token 重置**：每次重新部署或服務重啟時，生成的 `tokens.json` 會重置（除非您在 Cloud Run 掛載了 Volume）。
+2. **檔案流失**：上傳的檔案 (`uploads/`) 會在服務重啟後消失。
+3. **建議用途**：此部署方式適合快速測試與展示。若需用於生產環境，建議設定 Cloud Storage FUSE 或使用外部資料庫儲存狀態。
+
 ## 快速開始
 
 ### 1. 安裝 CLI
